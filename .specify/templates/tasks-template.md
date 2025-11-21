@@ -58,6 +58,8 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
+**Note**: Per the constitution, consider using Firebase for services like auth, database, and storage.
+
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
 Examples of foundational tasks (adjust based on your project):

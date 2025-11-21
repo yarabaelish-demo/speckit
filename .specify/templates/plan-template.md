@@ -31,7 +31,12 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **I. Library-First**: Does the feature start as a standalone library?
+- **II. CLI Interface**: Does the library expose functionality via a CLI?
+- **III. Test-First**: Are tests written before implementation?
+- **IV. Integration Testing**: Are integration tests included for contracts and inter-service communication?
+- **V. Observability, Versioning, Simplicity**: Are structured logging, versioning, and simplicity principles followed?
+- **VI. Firebase Integration**: Does the feature use Firebase for auth, database, storage, hosting, or generative AI where applicable?
 
 ## Project Structure
 
