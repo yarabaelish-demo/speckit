@@ -1,0 +1,21 @@
+openapi: 3.0.0
+info:
+  title: Audio Blog API
+  version: 1.0.0
+paths:
+  /auth/signup:
+    post:
+      summary: Register a new user
+      # ... definition ...
+  /auth/login:
+    post:
+      summary: Log in a user
+      # ... definition ...
+  /audio/upload:
+    post:
+      summary: Upload an audio file
+      # ... definition ...
+  /audio/search:
+    get:
+      summary: Search for audio entries
+      # ... definition ...
