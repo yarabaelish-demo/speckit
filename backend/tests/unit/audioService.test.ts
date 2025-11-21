@@ -1,11 +1,11 @@
-import { uploadAudio, getAudioEntry } from '../services/audioService';
-import { firestore } from '../config/firebaseAdmin';
+import { uploadAudio, getAudioEntry } from '@services/audioService';
+import { firestore } from '@config/firebaseAdmin';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { transcribeAudio } from '../services/transcriptionService';
-import { getTherapistResponse } from '../services/aiTherapistService';
+import { transcribeAudio } from '@services/transcriptionService';
+import { getTherapistResponse } from '@services/aiTherapistService';
 
 // Mock Firebase modules
-jest.mock('../config/firebaseAdmin', () => ({
+jest.mock('@config/firebaseAdmin', () => ({
   firestore: {
     collection: jest.fn(() => ({
       add: jest.fn(() => Promise.resolve({ id: 'testEntryId' })),
@@ -35,11 +35,11 @@ jest.mock('firebase/storage', () => ({
   getDownloadURL: jest.fn(() => Promise.resolve('http://test.com/audio.mp3')),
 }));
 
-jest.mock('../services/transcriptionService', () => ({
+jest.mock('@services/transcriptionService', () => ({
   transcribeAudio: jest.fn(() => Promise.resolve('test transcription')),
 }));
 
-jest.mock('../services/aiTherapistService', () => ({
+jest.mock('@services/aiTherapistService', () => ({
   getTherapistResponse: jest.fn(() => Promise.resolve('test ai response')),
 }));
 

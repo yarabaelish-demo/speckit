@@ -4,8 +4,10 @@ const serviceAccount = require('../../serviceAccountKey.json'); // You need to c
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://yara-speckit.firebaseio.com"
+  databaseURL: "https://yara-speckit.firebaseio.com",
+  storageBucket: "yara-speckit.firebasestorage.app" // Add your storage bucket here
 });
 
 export const auth = admin.auth();
 export const firestore = admin.firestore();
+export const storage = admin.storage();
