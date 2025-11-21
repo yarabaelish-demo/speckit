@@ -1,28 +1,31 @@
 import { uploadAudio, getAudioEntry } from '../services/audioService';
-import { getFirestore, collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { firestore } from '../config/firebaseAdmin';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { transcribeAudio } from '../services/transcriptionService';
 import { getTherapistResponse } from '../services/aiTherapistService';
 
 // Mock Firebase modules
-jest.mock('firebase/firestore', () => ({
-  getFirestore: jest.fn(() => ({})),
-  collection: jest.fn(() => ({})),
-  addDoc: jest.fn(() => Promise.resolve({ id: 'testEntryId' })),
-  doc: jest.fn(() => ({})),
-  getDoc: jest.fn(() => Promise.resolve({
-    exists: () => true,
-    data: () => ({
-      userId: 'testUser',
-      title: 'Test Audio',
-      audioUrl: 'http://test.com/audio.mp3',
-      tags: ['tag1', 'tag2'],
-      transcription: 'test transcription',
-      aiResponse: 'test ai response',
-      createdAt: new Date(),
-    }),
-    id: 'testEntryId',
-  })),
+jest.mock('../config/firebaseAdmin', () => ({
+  firestore: {
+    collection: jest.fn(() => ({
+      add: jest.fn(() => Promise.resolve({ id: 'testEntryId' })),
+    })),
+    doc: jest.fn(() => ({
+      get: jest.fn(() => Promise.resolve({
+        exists: true,
+        data: () => ({
+          userId: 'testUser',
+          title: 'Test Audio',
+          audioUrl: 'http://test.com/audio.mp3',
+          tags: ['tag1', 'tag2'],
+          transcription: 'test transcription',
+          aiResponse: 'test ai response',
+          createdAt: new Date(),
+        }),
+        id: 'testEntryId',
+      })),
+    })),
+  },
 }));
 
 jest.mock('firebase/storage', () => ({
@@ -59,9 +62,8 @@ describe('audioService', () => {
     expect(getDownloadURL).toHaveBeenCalled();
     expect(transcribeAudio).toHaveBeenCalledWith('http://test.com/audio.mp3');
     expect(getTherapistResponse).toHaveBeenCalledWith('test transcription');
-    expect(getFirestore).toHaveBeenCalled();
-    expect(collection).toHaveBeenCalledWith(expect.anything(), `personalData/${userId}/audioEntries`);
-    expect(addDoc).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+    expect(firestore.collection).toHaveBeenCalledWith(`personalData/${userId}/audioEntries`);
+    expect(firestore.collection(' ').add).toHaveBeenCalledWith(expect.objectContaining({
       userId,
       title,
       audioUrl: 'http://test.com/audio.mp3',
@@ -78,9 +80,8 @@ describe('audioService', () => {
 
     const result = await getAudioEntry(userId, entryId);
 
-    expect(getFirestore).toHaveBeenCalled();
-    expect(doc).toHaveBeenCalledWith(expect.anything(), `personalData/${userId}/audioEntries`, entryId);
-    expect(getDoc).toHaveBeenCalled();
+    expect(firestore.doc).toHaveBeenCalledWith(`personalData/${userId}/audioEntries/${entryId}`);
+    expect(firestore.doc('').get).toHaveBeenCalled();
     expect(result).toEqual(expect.objectContaining({ entryId }));
   });
 });
