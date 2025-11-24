@@ -1,12 +1,12 @@
 import { VertexAI } from '@google-cloud/vertexai';
 
-const project = 'yara-speckit'; // Replace with your Google Cloud Project ID
-const location = 'global'; // Replace with your desired Vertex AI region
+const project = process.env.GOOGLE_CLOUD_PROJECT || 'yara-speckit';
+const location = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 
 const vertexAI = new VertexAI({ project, location });
 
 const model = vertexAI.getGenerativeModel({
-  model: 'gemini-pro',
+  model: 'gemini-1.5-pro',
 });
 
 export const getTherapistResponse = async (transcription: string): Promise<string> => {

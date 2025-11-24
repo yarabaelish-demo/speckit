@@ -1,4 +1,4 @@
-import { DocumentData } from 'firebase/firestore';
+export interface DocumentData {}
 
 export interface AudioEntry extends DocumentData {
   entryId: string;
