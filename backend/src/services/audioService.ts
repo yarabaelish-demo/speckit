@@ -1,22 +1,28 @@
-import { firestore } from '../config/firebaseAdmin';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { AudioEntry } from '../models/audioEntry';
-import { transcribeAudio } from './transcriptionService';
-import { getTherapistResponse } from './aiTherapistService';
+import { firestore, storage } from '@config/firebaseAdmin.js';
+import type { AudioEntry } from '@models/audioEntry.js';
+import { transcribeAudio } from '@services/transcriptionService.js';
+import { getTherapistResponse } from '@services/aiTherapistService.js';
 
-export const uploadAudio = async (userId: string, file: File, title: string, tags: string[]): Promise<AudioEntry> => {
-  const storage = getStorage();
+export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: string, tags: string[]): Promise<AudioEntry> => {
+  const bucket = storage.bucket(); // Get the default bucket
+  const fileName = `audio/${userId}/${Date.now()}`;
+  const fileUpload = bucket.file(fileName);
 
   // Upload audio to Firebase Storage
-  const audioRef = ref(storage, `audio/${userId}/${file.name}`);
-  const snapshot = await uploadBytes(audioRef, file);
-  const audioUrl = await getDownloadURL(snapshot.ref);
+  await fileUpload.save(fileBuffer);
+  const [audioUrl] = await fileUpload.getSignedUrl({
+    action: 'read',
+    expires: '03-17-2026', // Set a far future expiry date for public access, adjust as needed
+  });
 
   // Transcribe audio
-  const transcription = await transcribeAudio(audioUrl);
+  const gcsUri = `gs://${bucket.name}/${fileName}`;
+  const transcription = await transcribeAudio(gcsUri);
+  // const transcription = 'test transcription';
 
   // Get AI therapist response
   const aiResponse = await getTherapistResponse(transcription);
+  // const aiResponse = 'test ai response';
 
   // Save audio entry metadata to Firestore
   const audioEntriesCollection = firestore.collection(`personalData/${userId}/audioEntries`);

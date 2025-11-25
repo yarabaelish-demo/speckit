@@ -1,11 +1,22 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
-const serviceAccount = require('../../serviceAccountKey.json'); // You need to create this file
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://yara-speckit.firebaseio.com"
+const serviceAccount = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../serviceAccountKey.json'), 'utf8'));
+
+initializeApp({
+  credential: cert(serviceAccount),
+  databaseURL: "https://yara-speckit.firebaseio.com",
+  storageBucket: "yara-speckit.firebasestorage.app"
 });
 
-export const auth = admin.auth();
-export const firestore = admin.firestore();
+export const auth = getAuth();
+export const firestore = getFirestore();
+export const storage = getStorage();

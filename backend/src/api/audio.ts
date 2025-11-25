@@ -1,9 +1,8 @@
 import { Router } from 'express';
 import fileUpload from 'express-fileupload';
-import { uploadAudio } from '../services/audioService';
-import { auth } from 'firebase-admin';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import { AudioEntry } from '../models/audioEntry';
+import { uploadAudio } from '../services/audioService.js';
+import { auth, firestore } from '@config/firebaseAdmin.js';
+import type { AudioEntry } from '@models/audioEntry.js';
 
 const audioRouter = Router();
 
@@ -40,13 +39,11 @@ audioRouter.get('/search', async (req, res) => {
   }
 
   try {
-    const firestore = getFirestore();
-    const audioEntriesRef = collection(firestore, `personalData/${userId}/audioEntries`);
-    const q = query(audioEntriesRef, where('transcription', 'array-contains', searchQuery.toString().toLowerCase()));
-    const querySnapshot = await getDocs(q);
+    const audioEntriesRef = firestore.collection(`personalData/${userId}/audioEntries`);
+    const snapshot = await audioEntriesRef.where('tags', 'array-contains', searchQuery.toString()).get();
 
     const results: AudioEntry[] = [];
-    querySnapshot.forEach((doc) => {
+    snapshot.forEach((doc) => {
       results.push({ ...doc.data() as Omit<AudioEntry, 'entryId'>, entryId: doc.id });
     });
 

@@ -1,9 +1,5 @@
-.env
-*/**/serviceAccountKey.json
-**/node_modules/
+*/**/node_modules/
 dist/
-.DS_Store
-.vscode/
-.idea/
 *.log
-coverage/
+.env*
+serviceAccountKey.json
