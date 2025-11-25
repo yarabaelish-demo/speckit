@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import fileUpload from 'express-fileupload';
-import { uploadAudio } from '../services/audioService';
+import { uploadAudio } from '../services/audioService.js';
 import { auth, firestore } from '@config/firebaseAdmin.js';
 import type { AudioEntry } from '@models/audioEntry.js';
 
