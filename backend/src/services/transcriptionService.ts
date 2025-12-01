@@ -1,20 +1,11 @@
-import { SpeechClient } from '@google-cloud/speech';
-
-const client = new SpeechClient();
-
-export const transcribeAudio = async (audioUri: string): Promise<string> => {
-  const audio = { uri: audioUri };
-  const config = {
-    encoding: 'MP3' as const,
-    sampleRateHertz: 16000,
-    languageCode: 'en-US',
+export const transcribeAudio = async (audioUrl: string): Promise<string> => {
+    // Mock transcription service
+    console.log(`Transcribing audio from: ${audioUrl}`);
+    return new Promise(resolve => {
+      setTimeout(() => {
+        const mockTranscription = "This is a mock transcription of the audio file.";
+        console.log("Transcription complete.");
+        resolve(mockTranscription);
+      }, 5000); // Simulate a 5-second transcription process
+    });
   };
-  const request = { audio, config };
-
-  const [response] = await client.recognize(request);
-  const transcription = response.results
-    ?.map((result) => result.alternatives?.[0]?.transcript)
-    .join('\n');
-
-  return transcription || '';
-};

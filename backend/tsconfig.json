@@ -11,7 +11,7 @@
     "exactOptionalPropertyTypes": true,
     "strict": true,
     "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    "verbatimModuleSyntax": false,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
@@ -20,7 +20,9 @@
     "paths": {
       "@services/*": ["src/services/*"],
       "@models/*": ["src/models/*"],
-      "@config/*": ["src/config/*"]
+      "@config/*": ["src/config/*"],
+      "@api/*": ["src/api/*"],
+      "@middleware/*": ["src/middleware/*"],
     }
   }
 }

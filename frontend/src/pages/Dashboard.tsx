@@ -1,102 +1,50 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Typography, Box, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
-import { AudioEntry } from '../../../backend/src/models/audioEntry'; // Assuming shared models
+import React, { useState, useEffect } from 'react';
+import { db } from '../firebaseConfig';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { AudioEntry } from '../models/audioEntry';
 import SearchBar from '../components/SearchBar';
 
 const Dashboard: React.FC = () => {
   const [audioEntries, setAudioEntries] = useState<AudioEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const auth = getAuth();
-  const firestore = getFirestore();
-
-  const fetchAudioEntries = async (searchQuery: string = '') => {
-    const user = auth.currentUser;
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const audioEntriesRef = collection(firestore, `personalData/${user.uid}/audioEntries`);
-      let q = query(audioEntriesRef, where('userId', '==', user.uid));
-
-      if (searchQuery) {
-        // Note: Firestore does not support full-text search directly.
-        // This will only work if 'transcription' field is an array of keywords or for exact matches.
-        // For more advanced search, consider a dedicated search service (e.g., Algolia).
-        q = query(q, where('transcription', 'array-contains', searchQuery.toLowerCase()));
-      }
-
-      const querySnapshot = await getDocs(q);
-
-      const entries: AudioEntry[] = [];
-      querySnapshot.forEach((doc) => {
-        entries.push({ ...doc.data() as Omit<AudioEntry, 'entryId'>, entryId: doc.id });
-      });
-      setAudioEntries(entries);
-    } catch (error) {
-      console.error('Error fetching audio entries:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [searchResults, setSearchResults] = useState<AudioEntry[]>([]);
 
   useEffect(() => {
-    fetchAudioEntries();
-  }, [auth, firestore]);
+    const fetchAudioEntries = async () => {
+      const querySnapshot = await getDocs(collection(db, "audioEntries"));
+      const entries = querySnapshot.docs.map(doc => doc.data() as AudioEntry);
+      setAudioEntries(entries);
+    };
 
-  const handleSearch = (searchQuery: string) => {
-    setLoading(true);
-    fetchAudioEntries(searchQuery);
+    fetchAudioEntries();
+  }, []);
+
+  const handleSearch = async (queryText: string) => {
+    if (!queryText) {
+      setSearchResults([]);
+      return;
+    }
+    const searchQuery = query(collection(db, "audioEntries"), where("transcription", ">=", queryText), where("transcription", "<=", queryText + '\uf8ff'));
+    const querySnapshot = await getDocs(searchQuery);
+    const results = querySnapshot.docs.map(doc => doc.data() as AudioEntry);
+    setSearchResults(results);
   };
 
-  if (loading) {
-    return (
-      <Container maxWidth="md">
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
+  const entriesToDisplay = searchResults.length > 0 ? searchResults : audioEntries;
 
   return (
-    <Container maxWidth="md">
-      <Typography variant="h4" component="h1" gutterBottom>
-        Your Audio Entries
-      </Typography>
+    <div>
+      <h1>Dashboard</h1>
       <SearchBar onSearch={handleSearch} />
-      {audioEntries.length === 0 ? (
-        <Typography variant="body1">No audio entries yet. Upload one!</Typography>
-      ) : (
-        <List>
-          {audioEntries.map((entry) => (
-            <ListItem key={entry.entryId} divider>
-              <ListItemText
-                primary={entry.title}
-                secondary={
-                  <>
-                    <Typography component="span" variant="body2" color="textPrimary">
-                      Tags: {entry.tags.join(', ')}
-                    </Typography>
-                    <br />
-                    <Typography component="span" variant="body2" color="textSecondary">
-                      Transcription: {entry.transcription}
-                    </Typography>
-                    <br />
-                    <Typography component="span" variant="body2" color="textSecondary">
-                      AI Response: {entry.aiResponse}
-                    </Typography>
-                  </>
-                }
-              />
-            </ListItem>
-          ))}
-        </List>
-      )}
-    </Container>
+      {entriesToDisplay.map(entry => (
+        <div key={entry.entryId}>
+          <h2>{entry.title}</h2>
+          <audio controls src={entry.audioUrl}></audio>
+          <p>Tags: {entry.tags.join(', ')}</p>
+          <p>Transcription: {entry.transcription}</p>
+          <p>AI Response: {entry.aiResponse}</p>
+        </div>
+      ))}
+    </div>
   );
 };
 

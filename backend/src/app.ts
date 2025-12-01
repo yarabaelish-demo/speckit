@@ -1,14 +1,17 @@
 import express from 'express';
 import cors from 'cors';
-import apiRouter from './api/index.js';
-import { logger, errorLogger } from './middleware/logger.js';
+import morgan from 'morgan';
+import api from './api/index.js';
+import { logger } from './middleware/logger.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(logger); // Use request logger
-app.use('/api', apiRouter);
-app.use(errorLogger); // Use error logger
+app.use(morgan('dev'));
+
+app.use('/api', api);
+
+app.use(logger);
 
 export default app;

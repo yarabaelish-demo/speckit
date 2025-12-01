@@ -1,7 +1,7 @@
-import { firestore, storage } from '@config/firebaseAdmin.js';
+import { db, storage } from '@config/firebaseAdmin.js';
 import type { AudioEntry } from '@models/audioEntry.js';
 import { transcribeAudio } from '@services/transcriptionService.js';
-import { getTherapistResponse } from '@services/aiTherapistService.js';
+import { getAIResponse } from '@services/aiTherapistService.js';
 
 export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: string, tags: string[]): Promise<AudioEntry> => {
   const bucket = storage.bucket(); // Get the default bucket
@@ -21,11 +21,11 @@ export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: str
   // const transcription = 'test transcription';
 
   // Get AI therapist response
-  const aiResponse = await getTherapistResponse(transcription);
+  const aiResponse = await getAIResponse(transcription);
   // const aiResponse = 'test ai response';
 
   // Save audio entry metadata to Firestore
-  const audioEntriesCollection = firestore.collection(`personalData/${userId}/audioEntries`);
+  const audioEntriesCollection = db.collection(`personalData/${userId}/audioEntries`);
   const newAudioEntry: Omit<AudioEntry, 'entryId'> = {
     userId,
     title,
@@ -41,7 +41,7 @@ export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: str
 };
 
 export const getAudioEntry = async (userId: string, entryId: string): Promise<AudioEntry | undefined> => {
-  const audioEntryDocRef = firestore.doc(`personalData/${userId}/audioEntries/${entryId}`);
+  const audioEntryDocRef = db.doc(`personalData/${userId}/audioEntries/${entryId}`);
   const docSnap = await audioEntryDocRef.get();
   if (docSnap.exists) {
     return { ...docSnap.data() as Omit<AudioEntry, 'entryId'>, entryId: docSnap.id };

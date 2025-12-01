@@ -1,7 +1,6 @@
-import type { DocumentData } from 'firebase/firestore';
-
-export interface User extends DocumentData {
-  uid: string;
-  email: string;
-  createdAt: Date;
-}
+export interface User {
+    userId: string;
+    email: string;
+    createdAt: Date;
+  }
+  

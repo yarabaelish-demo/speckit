@@ -38,9 +38,9 @@ jest.unstable_mockModule('@services/aiTherapistService.js', () => ({
 
 // Import modules dynamically after mocking
 const { uploadAudio, getAudioEntry } = await import('@services/audioService.js');
-const { firestore, storage } = await import('@config/firebaseAdmin.js');
+const { db, storage } = await import('@config/firebaseAdmin.js');
 const { transcribeAudio } = await import('@services/transcriptionService.js');
-const { getTherapistResponse } = await import('@services/aiTherapistService.js');
+const { getAIResponse } = await import('@services/aiTherapistService.js');
 
 describe('audioService', () => {
   beforeEach(() => {
@@ -57,7 +57,7 @@ describe('audioService', () => {
 
     const addMock = jest.fn(() => Promise.resolve({ id: 'testEntryId' }));
     const collectionMock = { add: addMock };
-    (firestore.collection as jest.Mock).mockReturnValue(collectionMock);
+    (db.collection as jest.Mock).mockReturnValue(collectionMock);
 
     const result = await uploadAudio(userId, fileBuffer, title, tags);
 
@@ -66,8 +66,8 @@ describe('audioService', () => {
     expect(mockFile.save).toHaveBeenCalledWith(fileBuffer);
     expect(mockFile.getSignedUrl).toHaveBeenCalled();
     expect(transcribeAudio).toHaveBeenCalledWith(expect.stringMatching(/^gs:\/\/test-bucket\/audio\/testUser\/\d+$/));
-    expect(getTherapistResponse).toHaveBeenCalledWith('test transcription');
-    expect(firestore.collection).toHaveBeenCalledWith(`personalData/${userId}/audioEntries`);
+    expect(getAIResponse).toHaveBeenCalledWith('test transcription');
+    expect(db.collection).toHaveBeenCalledWith(`personalData/${userId}/audioEntries`);
     expect(addMock).toHaveBeenCalledWith(expect.objectContaining({
       userId,
       title,
@@ -97,11 +97,11 @@ describe('audioService', () => {
       id: 'testEntryId',
     }));
     const docMock = { get: getMock };
-    (firestore.doc as jest.Mock).mockReturnValue(docMock);
+    (db.doc as jest.Mock).mockReturnValue(docMock);
 
     const result = await getAudioEntry(userId, entryId);
 
-    expect(firestore.doc).toHaveBeenCalledWith(`personalData/${userId}/audioEntries/${entryId}`);
+    expect(db.doc).toHaveBeenCalledWith(`personalData/${userId}/audioEntries/${entryId}`);
     expect(getMock).toHaveBeenCalled();
     expect(result).toEqual(expect.objectContaining({ entryId }));
   });
