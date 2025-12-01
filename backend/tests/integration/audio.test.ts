@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import http from 'http';
+import { db } from '#config/firebaseAdmin';
+
 
 // Mock the services BEFORE they are imported by the app
 jest.mock('#services/transcriptionService', () => ({
@@ -13,26 +15,8 @@ jest.mock('#services/aiTherapistService', () => ({
   getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
 }));
 
-
-// Mocks for Firebase Admin SDK
-const mockFirestore = {
-  collection: jest.fn(),
-  doc: jest.fn(),
-  where: jest.fn(),
-  get: jest.fn(),
-  set: jest.fn(),
-  update: jest.fn(),
-  add: jest.fn(),
-};
-
-// Setup chainability and return values
-mockFirestore.collection.mockReturnValue(mockFirestore);
-mockFirestore.doc.mockReturnValue(mockFirestore);
-mockFirestore.where.mockReturnValue(mockFirestore);
-mockFirestore.set.mockResolvedValue(undefined);
-mockFirestore.update.mockResolvedValue(undefined);
-mockFirestore.add.mockResolvedValue({ id: 'mockEntryId' });
-mockFirestore.get.mockResolvedValue({ docs: [{ data: () => ({ /* default mock data */ }) }] });
+jest.mock('#config/firebaseAdmin');
+const mockFirestore = db as jest.Mocked<typeof db>;
 
 const mockStorage = {
   bucket: jest.fn(() => ({
@@ -113,9 +97,7 @@ describe('Audio API', () => {
       createdAt: new Date().toISOString(),
     };
 
-    mockFirestore.get.mockResolvedValueOnce({
-        docs: [{ data: () => mockAudioEntry }],
-    });
+    mockFirestore.doc("mockEntryId").create({data: ()=> mockAudioEntry});
 
     const response = await request(server)
       .get('/api/audio/search?q=keyword');
