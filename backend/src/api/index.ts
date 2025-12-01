@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import authRouter from './auth.js';
-import audioRouter from './audio.js';
+import authRouter from '#api/auth';
+import audioRouter from '#api/audio';
 
 const router = Router();
 

@@ -1,7 +1,7 @@
-import { db, storage } from '@config/firebaseAdmin.js';
-import type { AudioEntry } from '@models/audioEntry.js';
-import { transcribeAudio } from '@services/transcriptionService.js';
-import { getAIResponse } from '@services/aiTherapistService.js';
+import { db, storage } from '#config/firebaseAdmin';
+import type { AudioEntry } from '#models/audioEntry';
+import { transcribeAudio } from '#services/transcriptionService';
+import { getAIResponse } from '#services/aiTherapistService';
 
 export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: string, tags: string[]): Promise<AudioEntry> => {
   const bucket = storage.bucket(); // Get the default bucket
@@ -48,3 +48,4 @@ export const getAudioEntry = async (userId: string, entryId: string): Promise<Au
   }
   return undefined;
 };
+

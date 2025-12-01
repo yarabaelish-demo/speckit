@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import api from './api/index.js';
-import { logger } from './middleware/logger.js';
+import api from '#api/index';
+import { logger } from '#middleware/logger';
 
 const app = express();
 

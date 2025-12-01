@@ -1,16 +1,23 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "start": "ts-node-dev src/index.ts",
+    "start": "node dist/index.js",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
+  },
+  "imports": {
+    "#services/*": "./dist/services/*.js",
+    "#models/*": "./dist/models/*.js",
+    "#config/*": "./dist/config/*.js",
+    "#api/*": "./dist/api/*.js",
+    "#middleware/*": "./dist/middleware/*.js"
   },
   "keywords": [],
   "author": "",
@@ -34,6 +41,7 @@
     "@types/express": "^5.0.5",
     "@types/express-fileupload": "^1.5.1",
     "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
     "@types/morgan": "^1.9.10",
     "@types/supertest": "^6.0.3",
     "jest": "^30.2.0",
