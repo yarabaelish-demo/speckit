@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getDb, getStorage, getAuth } from '#config/firebaseAdmin';
+import { db, storage, auth } from '#config/firebaseAdmin';
 import { uploadAudio, getAudioEntry } from '#services/audioService';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,9 +22,10 @@ describe('Audio Service Integration with Emulators', () => {
     await clearFirestore();
     await clearStorage();
     await clearAuth();
-  });
+  }, 15000);
 
   it('should upload an audio file and then retrieve the created entry', async () => {
+
     // 1. Setup test data
     const filePath = path.join(__dirname, 'test-audio.mp3');
     if (!fs.existsSync(filePath)) {
@@ -57,7 +58,7 @@ describe('Audio Service Integration with Emulators', () => {
     expect(retrievedEntry?.aiResponse).toContain('mock AI therapist response');
 
     // 6. Verify side-effects (file in storage)
-    const [files] = await getStorage().bucket().getFiles({ prefix: `audio/${userId}/` });
+    const [files] = await storage.bucket().getFiles({ prefix: `audio/${userId}/` });
     expect(files.length).toBe(1);
 
     // 7. Cleanup
@@ -67,14 +68,14 @@ describe('Audio Service Integration with Emulators', () => {
 
 // --- Emulator Cleanup Functions ---
 const clearFirestore = async () => {
-    const collections = await getDb().listCollections();
+    const collections = await db.listCollections();
     for (const collection of collections) {
         // This is a simplified cleanup. For nested collections, a recursive approach would be needed.
         const querySnapshot = await collection.get();
         if (querySnapshot.empty) {
             continue;
         }
-        const batch = getDb().batch();
+        const batch = db.batch();
         querySnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
@@ -84,7 +85,7 @@ const clearFirestore = async () => {
 
 const clearStorage = async () => {
     try {
-        const bucket = getStorage().bucket();
+        const bucket = storage.bucket();
         await bucket.deleteFiles({ force: true });
     } catch (error) {
         if ((error as any).code === 404) {
@@ -97,11 +98,11 @@ const clearStorage = async () => {
 
 const clearAuth = async () => {
     try {
-        const { users } = await getAuth().listUsers();
+        const { users } = await auth.listUsers();
         if (users.length > 0) {
-            await getAuth().deleteUsers(users.map((u: { uid: any; }) => u.uid));
+            await auth.deleteUsers(users.map((u: { uid: any; }) => u.uid));
         }
     } catch (error) {
         console.error("Error clearing auth emulator", error)
     }
-};
+}

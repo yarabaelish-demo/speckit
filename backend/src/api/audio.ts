@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getStorage, getDb } from '#config/firebaseAdmin';
+import { storage, db } from '#config/firebaseAdmin';
 import Busboy from 'busboy';
 import { v4 as uuidv4 } from 'uuid';
 import { transcribeAudio } from '#services/transcriptionService';
@@ -42,7 +42,7 @@ router.post('/upload', (req, res) => {
             const metadata = { contentType: mimetype };
             const remotePath = `audio/${uuidv4()}-${filename}`;
             
-            await getStorage().bucket().upload(filepath, {
+            await storage.bucket().upload(filepath, {
               destination: remotePath,
               metadata: metadata,
             });
@@ -50,12 +50,12 @@ router.post('/upload', (req, res) => {
             
             fs.unlinkSync(filepath);
     
-            const url = `https://firebasestorage.googleapis.com/v0/b/${getStorage().bucket().name}/o/${encodeURIComponent(remotePath)}?alt=media`;
+            const url = `https://firebasestorage.googleapis.com/v0/b/${storage.bucket().name}/o/${encodeURIComponent(remotePath)}?alt=media`;
             
             const entryId = uuidv4();
     
             console.log(`Adding document to Firestore with entryId: ${entryId}`);
-            await getDb().collection('audioEntries').doc(entryId).set({
+            await db.collection('audioEntries').doc(entryId).set({
               entryId,
               userId: 'temp-user-id', // Placeholder
               title: title || 'Untitled',
@@ -69,9 +69,9 @@ router.post('/upload', (req, res) => {
             
             // Non-blocking background processing
             transcribeAudio(url).then(async (transcription: string) => {
-                await getDb().collection('audioEntries').doc(entryId).update({ transcription });
+                await db.collection('audioEntries').doc(entryId).update({ transcription });
                 const aiResponse = await getAIResponse(transcription);
-                await getDb().collection('audioEntries').doc(entryId).update({ aiResponse });
+                await db.collection('audioEntries').doc(entryId).update({ aiResponse });
             });
           }
         }
@@ -92,7 +92,7 @@ router.get('/search', async (req, res) => {
     }
   
     try {
-      const snapshot = await getDb().collection('audioEntries')
+      const snapshot = await db.collection('audioEntries')
         .where('transcription', '>=', q)
         .where('transcription', '<=', q + '\uf8ff')
         .get();
@@ -104,4 +104,4 @@ router.get('/search', async (req, res) => {
     }
   });
 
-export default router;
+export { router };
