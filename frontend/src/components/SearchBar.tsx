@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { TextField, Button, Box } from '@mui/material';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -8,28 +7,21 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
 
-  const handleSearch = () => {
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
     onSearch(query);
   };
 
   return (
-    <Box display="flex" gap={1} sx={{ mb: 2 }}>
-      <TextField
-        label="Search by transcription"
-        variant="outlined"
-        fullWidth
+    <form onSubmit={handleSearch}>
+      <input
+        type="text"
+        placeholder="Search transcriptions..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onKeyPress={(e) => {
-          if (e.key === 'Enter') {
-            handleSearch();
-          }
-        }}
       />
-      <Button variant="contained" color="primary" onClick={handleSearch}>
-        Search
-      </Button>
-    </Box>
+      <button type="submit">Search</button>
+    </form>
   );
 };
 

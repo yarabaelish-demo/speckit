@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import audioRouter from './audio.js';
-import authRouter from './auth.js';
+import authRouter from '#api/auth';
+import audioRouter from '#api/audio';
 
-const apiRouter = Router();
+const router = Router();
 
-apiRouter.use('/audio', audioRouter);
-apiRouter.use('/auth', authRouter);
+router.use('/auth', authRouter);
+router.use('/audio', audioRouter);
 
-export default apiRouter;
+export default router;

@@ -1,14 +1,23 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "type": "module",
   "directories": {
     "test": "tests"
   },
   "scripts": {
+    "start": "node dist/index.js",
+    "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
+  },
+  "imports": {
+    "#services/*": "./dist/services/*.js",
+    "#models/*": "./dist/models/*.js",
+    "#config/*": "./dist/config/*.js",
+    "#api/*": "./dist/api/*.js",
+    "#middleware/*": "./dist/middleware/*.js"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +26,8 @@
   "dependencies": {
     "@google-cloud/speech": "^7.2.1",
     "@google-cloud/vertexai": "^1.10.0",
+    "@types/busboy": "^1.5.4",
+    "busboy": "^1.6.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-fileupload": "^1.5.2",
@@ -30,12 +41,15 @@
     "@types/express": "^5.0.5",
     "@types/express-fileupload": "^1.5.1",
     "@types/jest": "^30.0.0",
+    "@types/mocha": "^10.0.10",
+    "@types/morgan": "^1.9.10",
     "@types/supertest": "^6.0.3",
     "jest": "^30.2.0",
+    "morgan": "1.10.1",
+    "nodemon": "^3.1.4",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.5",
     "tsconfig-paths": "^4.2.0",
-    "nodemon": "^3.1.4",
     "tsx": "^4.21.0"
   }
 }

@@ -1,22 +1,16 @@
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getStorage } from 'firebase-admin/storage';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import admin from 'firebase-admin';
+import { applicationDefault } from 'firebase-admin/app';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Prevent Firebase initialization during tests
+if (process.env.NODE_ENV !== 'test') {
+  if (!admin.apps || admin.apps.length === 0) { // Check if admin.apps is defined before accessing its length
+    admin.initializeApp({
+      credential: applicationDefault(),
+      storageBucket: `${process.env.GCLOUD_PROJECT}.appspot.com`
+    });
+  }
+}
 
-const serviceAccount = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../serviceAccountKey.json'), 'utf8'));
-
-initializeApp({
-  credential: cert(serviceAccount),
-  databaseURL: "https://yara-speckit.firebaseio.com",
-  storageBucket: "yara-speckit.firebasestorage.app"
-});
-
-export const auth = getAuth();
-export const firestore = getFirestore();
-export const storage = getStorage();
+export const db = admin.firestore();
+export const storage = admin.storage();
+export const auth = admin.auth();
