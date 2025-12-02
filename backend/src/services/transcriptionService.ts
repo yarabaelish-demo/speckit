@@ -6,6 +6,6 @@ export const transcribeAudio = async (audioUrl: string): Promise<string> => {
         const mockTranscription = "This is a mock transcription of the audio file.";
         console.log("Transcription complete.");
         resolve(mockTranscription);
-      }, 5000).unref(); // Simulate a 5-second transcription process
+      }, 500).unref(); // Simulate a .5-second transcription process
     });
   };
