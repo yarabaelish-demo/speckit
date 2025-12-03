@@ -41,7 +41,7 @@ Place GEMINI_API_KEY with Firebase AI Logic access in `.env`. You can restrict t
 
 ```bash
 cd backend
- NODE_ENV=system NODE_OPTIONS='--experimental-vm-modules' npx jest tests/system/transcriptionSystem.test.ts
+NODE_ENV=system NODE_OPTIONS='--experimental-vm-modules' npx jest tests/system/transcriptionSystem.test.ts
 ```
 
 To make this warning message - "`GOOGLE_APPLICATION_CREDENTIALS` not set. System test may fail." - go away, also set `GOOGLE_APPLICATION_CREDENTIALS`. This key is supposed to have storage access. 
