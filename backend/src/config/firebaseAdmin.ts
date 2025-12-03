@@ -1,5 +1,7 @@
 import admin from 'firebase-admin';
 import { applicationDefault } from 'firebase-admin/app';
+import dotenv from 'dotenv';                                                                                                 
+dotenv.config();  
 
 function initializeFirebase() {
     if (!admin.apps || admin.apps.length === 0) {
