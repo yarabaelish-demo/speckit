@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import request from 'supertest';
 import express from 'express';
 import { db, storage, auth } from '#config/firebaseAdmin';
-import { router as audioApiRouter } from '#api/audio';
 
-// Mock the external services that are not part of this integration test
-jest.mock('#services/transcriptionService', () => ({
+// ESM Mocking
+jest.unstable_mockModule('#services/transcriptionService', () => ({
   transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
 }));
-jest.mock('#services/aiTherapistService', () => ({
+jest.unstable_mockModule('#services/aiTherapistService', () => ({
   getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
 }));
+
+// Dynamic imports for modules under test are required after unstable_mockModule
+const { router: audioApiRouter } = await import('#api/audio');
+const { uploadAudio } = await import('#services/audioService');
 
 // Create a test Express app
 const app = express();

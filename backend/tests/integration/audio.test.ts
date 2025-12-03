@@ -1,20 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { db, storage, auth } from '#config/firebaseAdmin';
-import { uploadAudio, getAudioEntry } from '#services/audioService';
+
+// ESM Mocking
+jest.unstable_mockModule('#services/transcriptionService', () => ({
+  transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
+}));
+jest.unstable_mockModule('#services/aiTherapistService', () => ({
+  getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
+}));
+
+// Dynamic imports for modules under test are required after unstable_mockModule
+const { uploadAudio, getAudioEntry } = await import('#services/audioService');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Mock the external services that are not part of this integration test
-jest.mock('#services/transcriptionService', () => ({
-  transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
-}));
-jest.mock('#services/aiTherapistService', () => ({
-  getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
-}));
 
 // --- Test Suite ---
 describe('Audio Service Integration with Emulators', () => {
@@ -55,7 +57,7 @@ describe('Audio Service Integration with Emulators', () => {
     expect(retrievedEntry?.userId).toBe(userId);
     expect(retrievedEntry?.audioUrl).toBeTruthy();
     expect(retrievedEntry?.transcription).toContain('mock transcription');
-    expect(retrievedEntry?.aiResponse).toContain('mock AI therapist response');
+    expect(retrievedEntry?.aiResponse).toContain('mock ai response');
 
     // 6. Verify side-effects (file in storage)
     const [files] = await storage.bucket().getFiles({ prefix: `audio/${userId}/` });

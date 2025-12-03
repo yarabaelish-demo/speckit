@@ -51,6 +51,7 @@ router.post('/upload', (req, res) => {
             fs.unlinkSync(filepath);
     
             const url = `https://firebasestorage.googleapis.com/v0/b/${storage.bucket().name}/o/${encodeURIComponent(remotePath)}?alt=media`;
+            const gcsUri = `gs://${storage.bucket().name}/${remotePath}`;
             
             const entryId = uuidv4();
     
@@ -68,7 +69,7 @@ router.post('/upload', (req, res) => {
             console.log(`Document added to Firestore.`);
             
             // Non-blocking background processing
-            transcribeAudio(url).then(async (transcription: string) => {
+            transcribeAudio(gcsUri).then(async (transcription: string) => {
                 await db.collection('audioEntries').doc(entryId).update({ transcription });
                 const aiResponse = await getAIResponse(transcription);
                 await db.collection('audioEntries').doc(entryId).update({ aiResponse });
