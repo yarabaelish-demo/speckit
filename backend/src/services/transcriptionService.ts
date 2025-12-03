@@ -5,18 +5,18 @@ import { storage } from '#config/firebaseAdmin';
 // Initialize Firebase Client App (separate from Admin) for AI SDK
 // In a real scenario, ensure these env vars are set or use a proper config
 const firebaseConfig = {
-  apiKey: "AIzaSyAS8SssaU0ajy1cTk0kJGcMogwrk4xyd0Y",
-  authDomain: "yara-speckit.firebaseapp.com",
-  projectId: "yara-speckit",
-  storageBucket: "yara-speckit.firebasestorage.app",
-  messagingSenderId: "1054565466870",
-  appId: "1:1054565466870:web:18da97ea32422bbafa22d7",
-  measurementId: "G-60NCCYT18Q"
+  apiKey: process.env.FIREBASE_API_KEY, // Use environment variable
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN, // Use environment variable
+  projectId: process.env.GCLOUD_PROJECT, // Use environment variable
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.GCLOUD_PROJECT}.appspot.com`, // Use environment variable or derive
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID, // Use environment variable
+  appId: process.env.FIREBASE_APP_ID, // Use environment variable
+  // measurementId: process.env.FIREBASE_MEASUREMENT_ID, // Optional
 };
 
 const firebaseApp = initializeApp(firebaseConfig, "AI_CLIENT");
 const ai = getAI(firebaseApp, { backend: new GoogleAIBackend() });
-const model = getGenerativeModel(ai, { model: "gemini-2.5-flash" });
+const model = getGenerativeModel(ai, { model: "gemini-2.5-flash" }); // Updated model to gemini-2.5-flash
 
 export const transcribeAudio = async (gcsUri: string): Promise<string> => {
   console.log(`Transcribing audio from: ${gcsUri}`);

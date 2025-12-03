@@ -24,7 +24,7 @@ To ensure integration tests connect to the Firebase Emulators, the `backend/test
 
 This file is automatically loaded by Jest via `jest.config.cjs` before tests execute, directing the Firebase Admin SDK to communicate with the local emulators.
 
-## 2. Run the Tests
+## 2. Run the Unit and Integration Tests
 
 Once the emulators are running, navigate to the `backend` directory and run the tests using npm:
 
@@ -34,3 +34,14 @@ NODE_ENV=test npm test
 ```
 
 The `NODE_ENV=test` environment variable is crucial as it tells the application to connect to the Firebase emulators instead of the production Firebase project.
+
+## 3. Run the System Test
+
+Place GEMINI_API_KEY with Firebase AI Logic access in `.env`. You can restrict this key to only Firebase AI Logic. 
+
+```bash
+cd backend
+ NODE_ENV=system NODE_OPTIONS='--experimental-vm-modules' npx jest tests/system/transcriptionSystem.test.ts
+```
+
+To make this warning message - "`GOOGLE_APPLICATION_CREDENTIALS` not set. System test may fail." - go away, also set `GOOGLE_APPLICATION_CREDENTIALS`. This key is supposed to have storage access. 
