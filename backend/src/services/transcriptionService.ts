@@ -8,7 +8,7 @@ const firebaseConfig = {
   apiKey: process.env.FIREBASE_API_KEY, // Use environment variable
   authDomain: process.env.FIREBASE_AUTH_DOMAIN, // Use environment variable
   projectId: process.env.GCLOUD_PROJECT, // Use environment variable
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.GCLOUD_PROJECT}.appspot.com`, // Use environment variable or derive
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.GCLOUD_PROJECT}.firebasestorage.app`, // Use environment variable or derive
   messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID, // Use environment variable
   appId: process.env.FIREBASE_APP_ID, // Use environment variable
   // measurementId: process.env.FIREBASE_MEASUREMENT_ID, // Optional
@@ -37,9 +37,15 @@ export const transcribeAudio = async (gcsUri: string): Promise<string> => {
   // 3. Prepare the part object (mimicking the client-side fileToGenerativePart)
   // Determine mimeType based on file extension
   const extension = filePath.split('.').pop()?.toLowerCase();
-  let mimeType = 'audio/mpeg'; // Default to MP3
+  let mimeType = 'audio/mpeg'; // Default
   if (extension === 'm4a') {
       mimeType = 'audio/m4a';
+  } else if (extension === 'webm') {
+      mimeType = 'audio/webm';
+  } else if (extension === 'wav') {
+      mimeType = 'audio/wav';
+  } else if (extension === 'mp4') {
+      mimeType = 'audio/mp4';
   }
 
   const audioPart = {

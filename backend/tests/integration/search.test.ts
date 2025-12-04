@@ -17,6 +17,7 @@ const { uploadAudio } = await import('#services/audioService');
 
 // Create a test Express app
 const app = express();
+app.use(express.json());
 app.use('/audio', audioApiRouter);
 
 // --- Test Suite ---
@@ -27,23 +28,36 @@ describe('Audio API Search Endpoint Integration', () => {
         await clearFirestore();
         await clearAuth();
         jest.clearAllMocks();
+        // Mock auth verification
+        jest.spyOn(auth, 'verifyIdToken').mockResolvedValue({ uid: SEARCH_USER_ID } as any);
     });
 
     it('should return 400 if query parameter \'q\' is missing', async () => {
-        const res = await request(app).get('/audio/search');
+        const res = await request(app)
+            .get('/audio/search')
+            .set('Authorization', 'Bearer mock-token');
 
         expect(res.statusCode).toEqual(400);
         expect(res.body).toEqual({ error: 'Query parameter "q" is required.' });
     });
 
+    it('should return 401 if no token provided', async () => {
+        const res = await request(app).get('/audio/search?q=test');
+        expect(res.statusCode).toEqual(401);
+    });
+
     it('should return audio entries matching the search query', async () => {
         // Explicitly update Firestore documents with specific transcriptions for search
         // The API uses a prefix search (starts-with), so the transcription must start with the query.
-        await db.collection('audioEntries').add({ transcription: 'nature walk and trees' });
-        await db.collection('audioEntries').add({ transcription: 'city buildings and cars' });
-        await db.collection('audioEntries').add({ transcription: 'nature hike in the mountains' });
+        const userAudioCollection = db.collection(`users/${SEARCH_USER_ID}/audioEntries`);
+        await userAudioCollection.add({ transcription: 'nature walk and trees' });
+        await userAudioCollection.add({ transcription: 'city buildings and cars' });
+        await userAudioCollection.add({ transcription: 'nature hike in the mountains' });
 
-        const res = await request(app).get('/audio/search').query({ q: 'nature' });
+        const res = await request(app)
+            .get('/audio/search')
+            .query({ q: 'nature' })
+            .set('Authorization', 'Bearer mock-token');
 
         expect(res.statusCode).toEqual(200);
         expect(res.body.length).toBe(2);
@@ -55,7 +69,8 @@ describe('Audio API Search Endpoint Integration', () => {
 
     it('should return an empty array if no audio entries match the search query', async () => {
         // Manually add an entry to 'audioEntries' collection which the search endpoint queries
-        const docRef = await db.collection('audioEntries').add({
+        const userAudioCollection = db.collection(`users/${SEARCH_USER_ID}/audioEntries`);
+        await userAudioCollection.add({
             userId: SEARCH_USER_ID,
             title: 'No Match Test',
             transcription: 'unique transcription',
@@ -63,7 +78,10 @@ describe('Audio API Search Endpoint Integration', () => {
             createdAt: new Date()
         });
 
-        const res = await request(app).get('/audio/search').query({ q: 'nomatch' });
+        const res = await request(app)
+            .get('/audio/search')
+            .query({ q: 'nomatch' })
+            .set('Authorization', 'Bearer mock-token');
 
         expect(res.statusCode).toEqual(200);
         expect(res.body).toEqual([]);
@@ -74,15 +92,27 @@ describe('Audio API Search Endpoint Integration', () => {
 const clearFirestore = async () => {
     const collections = await db.listCollections();
     for (const collection of collections) {
-        // This is a simplified cleanup. For nested collections, a recursive approach would be needed.
         const querySnapshot = await collection.get();
-        if (querySnapshot.empty) {
-            continue;
-        }
+        if (querySnapshot.empty) continue;
+        
         const batch = db.batch();
-        querySnapshot.forEach((doc: { ref: FirebaseFirestore.DocumentReference<any, any>; }) => {
-            batch.delete(doc.ref);
-        });
+        for (const doc of querySnapshot.docs) {
+            // Recursively delete subcollections if necessary, 
+            // but for this test we mostly care about the root collections or user collections
+            // Deleting the user document itself doesn't delete subcollections in Firestore, 
+            // but in the test environment we might need to delete `users/{uid}/audioEntries` specifically.
+            // For simplicity in this test context:
+             batch.delete(doc.ref);
+        }
+        await batch.commit();
+    }
+    // Also clear specific user subcollections if they aren't covered by listCollections (which lists root collections)
+    // However, since we are creating dynamic paths, we might need to explicitly target them or use recursive delete logic.
+    // For this specific test, we know the path:
+    const searchUserEntries = await db.collection(`users/search-test-user-id/audioEntries`).get();
+    if (!searchUserEntries.empty) {
+        const batch = db.batch();
+        searchUserEntries.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
     }
 };
