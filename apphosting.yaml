@@ -1,0 +1,19 @@
+# apphosting.yaml
+serviceAccount: firebase-app-hosting-compute@yara-speckit.iam.gserviceaccount.com
+env:
+  - name: FIREBASE_API_KEY
+    value: AIzaSyAS8SssaU0ajy1cTk0kJGcMogwrk4xyd0Y
+  - name: FIREBASE_AUTH_DOMAIN
+    value: yara-speckit.firebaseapp.com
+  - name: GCLOUD_PROJECT
+    value: yara-speckit
+  - name: FIREBASE_STORAGE_BUCKET
+    value: yara-speckit.firebasestorage.app
+  - name: FIREBASE_MESSAGING_SENDER_ID
+    value: 1054565466870
+  - name: FIREBASE_APP_ID
+    value: 1:1054565466870:web:18da97ea32422bbafa22d7
+runConfig:
+  # Ensure the app listens on the PORT environment variable
+  port: 8080
+  startCommand: npm run start
