@@ -1,22 +1,13 @@
-import { initializeApp } from "firebase/app";
-import { getAI, getGenerativeModel, GoogleAIBackend } from "@firebase/ai";
+import { VertexAI, GenerativeModel } from '@google-cloud/vertexai';
 import { storage } from '#config/firebaseAdmin';
 
-// Initialize Firebase Client App (separate from Admin) for AI SDK
-// In a real scenario, ensure these env vars are set or use a proper config
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY, // Use environment variable
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN, // Use environment variable
-  projectId: process.env.GCLOUD_PROJECT, // Use environment variable
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || `${process.env.GCLOUD_PROJECT}.firebasestorage.app`, // Use environment variable or derive
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID, // Use environment variable
-  appId: process.env.FIREBASE_APP_ID, // Use environment variable
-  // measurementId: process.env.FIREBASE_MEASUREMENT_ID, // Optional
-};
+// Initialize Vertex AI (Server-side SDK)
+const projectId = 'yara-speckit';
+const location = 'us-central1';
+const modelName = 'gemini-1.5-flash';
 
-const firebaseApp = initializeApp(firebaseConfig, "AI_CLIENT");
-const ai = getAI(firebaseApp, { backend: new GoogleAIBackend() });
-const model = getGenerativeModel(ai, { model: "gemini-2.5-flash" }); // Updated model to gemini-2.5-flash
+const vertex_ai = new VertexAI({ project: projectId, location: location });
+const model: GenerativeModel = vertex_ai.getGenerativeModel({ model: modelName });
 
 export const transcribeAudio = async (gcsUri: string): Promise<string> => {
   console.log(`Transcribing audio from: ${gcsUri}`);
@@ -34,7 +25,7 @@ export const transcribeAudio = async (gcsUri: string): Promise<string> => {
   const [fileBuffer] = await storage.bucket(bucketName).file(filePath).download();
   const base64Audio = fileBuffer.toString('base64');
 
-  // 3. Prepare the part object (mimicking the client-side fileToGenerativePart)
+  // 3. Prepare the part object
   // Determine mimeType based on file extension
   const extension = filePath.split('.').pop()?.toLowerCase();
   let mimeType = 'audio/mpeg'; // Default
@@ -58,17 +49,22 @@ export const transcribeAudio = async (gcsUri: string): Promise<string> => {
   const prompt = "Transcribe what's said in this audio recording.";
 
   try {
-    const result = await model.generateContent([prompt, audioPart]);
-    let responseText = "No text in response.";
-
-    if (result && result.response && typeof result.response.text === 'function') {
-      responseText = result.response.text();
-    }
+    const result = await model.generateContent({
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: prompt },
+          audioPart
+        ]
+      }]
+    });
+    const response = result.response;
+    const responseText = response.candidates?.[0].content.parts[0].text;
     
     console.log('Transcription complete.');
     return responseText || "No text in response.";
   } catch (error) {
-    console.error('Error in transcribeAudio (Firebase AI):', error);
+    console.error('Error in transcribeAudio (Vertex AI):', error);
     throw error;
   }
 };

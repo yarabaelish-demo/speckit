@@ -1,5 +1,7 @@
 import admin from 'firebase-admin';
 import { applicationDefault } from 'firebase-admin/app';
+import { Storage } from 'firebase-admin/storage';
+import { Auth } from 'firebase-admin/auth';
 import dotenv from 'dotenv';                                                                                                 
 dotenv.config();  
 
@@ -28,5 +30,5 @@ function initializeFirebase() {
 initializeFirebase();
 
 export const db = admin.firestore();
-export const storage = admin.storage();
-export const auth = admin.auth();
+export const storage: Storage = admin.storage();
+export const auth: Auth = admin.auth();
