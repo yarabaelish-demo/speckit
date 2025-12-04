@@ -8,4 +8,5 @@ module.exports = {
     '^#api/(.*)$' : '<rootDir>/src/api/$1',
     '^#middleware/(.*)$' : '<rootDir>/src/middleware/$1',
   },
+  setupFiles: ['<rootDir>/tests/setupEnv.js'],
 };

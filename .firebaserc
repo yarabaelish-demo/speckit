@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "yara-speckit"
+  },
   "targets": {},
   "etags": {}
 }

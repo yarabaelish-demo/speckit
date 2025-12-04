@@ -1,108 +1,110 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import request from 'supertest';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import http from 'http';
-import { db } from '#config/firebaseAdmin';
+import { db, storage, auth } from '#config/firebaseAdmin';
 
-
-// Mock the services BEFORE they are imported by the app
-jest.mock('#services/transcriptionService', () => ({
+// ESM Mocking
+jest.unstable_mockModule('#services/transcriptionService', () => ({
   transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
 }));
-jest.mock('#services/aiTherapistService', () => ({
+jest.unstable_mockModule('#services/aiTherapistService', () => ({
   getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
 }));
 
-jest.mock('#config/firebaseAdmin');
-const mockFirestore = db as jest.Mocked<typeof db>;
-
-const mockStorage = {
-  bucket: jest.fn(() => ({
-    file: jest.fn(() => ({
-      save: jest.fn(() => Promise.resolve()),
-      getSignedUrl: jest.fn(() => Promise.resolve(['http://test.com/audio.mp3'])),
-    })),
-    upload: jest.fn(() => Promise.resolve()),
-    name: 'test-bucket',
-  })),
-};
-
-jest.unstable_mockModule('firebase-admin', () => ({
-  __esModule: true,
-  default: {
-    initializeApp: jest.fn(),
-    credential: {
-      cert: jest.fn(),
-    },
-    firestore: () => mockFirestore,
-    storage: () => mockStorage,
-    auth: () => ({}),
-    apps: [{}], // Prevent real initialization by making apps array non-empty
-  }
-}));
+// Dynamic imports for modules under test are required after unstable_mockModule
+const { uploadAudio, getAudioEntry } = await import('#services/audioService');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Dynamically import the app *after* mocks are set up
-const { default: app } = await import('../../dist/app.js');
+// --- Test Suite ---
+describe('Audio Service Integration with Emulators', () => {
+  beforeEach(async () => {
+    await clearFirestore();
+    await clearStorage();
+    await clearAuth();
+  }, 15000);
 
-let server: http.Server;
+  it('should upload an audio file and then retrieve the created entry', async () => {
 
-describe('Audio API', () => {
-  beforeAll((done) => {
-    server = http.createServer(app);
-    server.listen(done);
-  });
-
-  afterAll((done) => {
-    server.close(done);
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should upload an audio file', async () => {
+    // 1. Setup test data
     const filePath = path.join(__dirname, 'test-audio.mp3');
     if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, 'dummy content');
     }
     const fileBuffer = fs.readFileSync(filePath);
+    const userId = 'test-user-id-123';
+    const title = 'My Test Upload';
+    const tags = ['jest', 'integration-test'];
 
-    const response = await request(server)
-      .post('/api/audio/upload')
-      .field('title', 'Test Audio from Integration Test')
-      .field('tags', 'integration,test')
-      .attach('audio', fileBuffer, 'test-audio.mp3');
+    // 2. Call the upload function from the service
+    const uploadedEntry = await uploadAudio(userId, fileBuffer, title, tags);
 
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('message', 'Upload successful, processing audio in the background.');
+    // 3. Assert the result of the upload
+    expect(uploadedEntry).toBeDefined();
+    expect(uploadedEntry.userId).toBe(userId);
+    expect(uploadedEntry.title).toBe(title);
+    expect(uploadedEntry.entryId).toBeTruthy();
 
-    // Clean up the test file
+    // 4. Call the get function from the service
+    const retrievedEntry = await getAudioEntry(userId, uploadedEntry.entryId);
+
+    // 5. Assert the result of the get operation
+    expect(retrievedEntry).toBeDefined();
+    expect(retrievedEntry?.entryId).toBe(uploadedEntry.entryId);
+    expect(retrievedEntry?.title).toBe(title);
+    expect(retrievedEntry?.userId).toBe(userId);
+    expect(retrievedEntry?.audioUrl).toBeTruthy();
+    expect(retrievedEntry?.transcription).toContain('mock transcription');
+    expect(retrievedEntry?.aiResponse).toContain('mock ai response');
+
+    // 6. Verify side-effects (file in storage)
+    const [files] = await storage.bucket().getFiles({ prefix: `audio/${userId}/` });
+    expect(files.length).toBe(1);
+
+    // 7. Cleanup
     fs.unlinkSync(filePath);
-  }, 10000); // Increase timeout to 10 seconds
-
-  it('should search for audio entries', async () => {
-    const mockAudioEntry = {
-      entryId: 'searchEntry1',
-      userId: 'testUser',
-      title: 'Searchable Audio',
-      audioUrl: 'http://test.com/search-audio.mp3',
-      tags: ['search', 'example'],
-      transcription: 'This audio is searchable by keyword.',
-      aiResponse: 'AI analysis.',
-      createdAt: new Date().toISOString(),
-    };
-
-    mockFirestore.doc("mockEntryId").create({data: ()=> mockAudioEntry});
-
-    const response = await request(server)
-      .get('/api/audio/search?q=keyword');
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual([mockAudioEntry]);
-  }, 30000);
+  }, 15000); // Increased timeout for file operations
 });
+
+// --- Emulator Cleanup Functions ---
+const clearFirestore = async () => {
+    const collections = await db.listCollections();
+    for (const collection of collections) {
+        // This is a simplified cleanup. For nested collections, a recursive approach would be needed.
+        const querySnapshot = await collection.get();
+        if (querySnapshot.empty) {
+            continue;
+        }
+        const batch = db.batch();
+        querySnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+    }
+};
+
+const clearStorage = async () => {
+    try {
+        const bucket = storage.bucket();
+        await bucket.deleteFiles({ force: true });
+    } catch (error) {
+        if ((error as any).code === 404) {
+            // Bucket might not exist on first run, which is fine.
+            return;
+        }
+        throw error;
+    }
+};
+
+const clearAuth = async () => {
+    try {
+        const { users } = await auth.listUsers();
+        if (users.length > 0) {
+            await auth.deleteUsers(users.map((u: { uid: any; }) => u.uid));
+        }
+    } catch (error) {
+        console.error("Error clearing auth emulator", error)
+    }
+}

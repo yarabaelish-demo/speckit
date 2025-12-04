@@ -16,6 +16,7 @@
     "@types/react-dom": "^19.2.3",
     "firebase": "^12.6.0",
     "react": "^19.2.0",
+    "react-calendar": "^6.0.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
     "react-scripts": "5.0.1",

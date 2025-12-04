@@ -25,7 +25,7 @@ export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: str
   // const aiResponse = 'test ai response';
 
   // Save audio entry metadata to Firestore
-  const audioEntriesCollection = db.collection(`personalData/${userId}/audioEntries`);
+  const audioEntriesCollection = db.collection(`users/${userId}/audioEntries`);
   const newAudioEntry: Omit<AudioEntry, 'entryId'> = {
     userId,
     title,
@@ -41,7 +41,7 @@ export const uploadAudio = async (userId: string, fileBuffer: Buffer, title: str
 };
 
 export const getAudioEntry = async (userId: string, entryId: string): Promise<AudioEntry | undefined> => {
-  const audioEntryDocRef = db.doc(`personalData/${userId}/audioEntries/${entryId}`);
+  const audioEntryDocRef = db.doc(`users/${userId}/audioEntries/${entryId}`);
   const docSnap = await audioEntryDocRef.get();
   if (docSnap.exists) {
     return { ...docSnap.data() as Omit<AudioEntry, 'entryId'>, entryId: docSnap.id };
