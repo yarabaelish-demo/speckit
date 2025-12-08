@@ -35,4 +35,4 @@ The frontend is a React application that provides the user interface for interac
 
 ## Deployment
 
-The application is deployed using Firebase Hosting for the frontend and Cloud Functions for the backend.
+The application is deployed using Firebase Hosting.
