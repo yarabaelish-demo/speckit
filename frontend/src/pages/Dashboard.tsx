@@ -3,19 +3,25 @@ import { db, auth } from '../firebaseConfig';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { AudioEntry } from '../models/audioEntry';
-import SearchBar from '../components/SearchBar';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
 import ChatPanel from '../components/ChatPanel';
+import LeftPanel from '../components/LeftPanel';
+import RightPanel from '../components/RightPanel';
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  searchQuery?: string;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
   const [audioEntries, setAudioEntries] = useState<AudioEntry[]>([]);
-  const [searchResults, setSearchResults] = useState<AudioEntry[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState<Date | Date[]>(new Date());
-  const [isSearching, setIsSearching] = useState(false);
   const [activeChatEntry, setActiveChatEntry] = useState<AudioEntry | null>(null);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const entriesPerPage = 5;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -50,29 +56,11 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleSearch = (queryText: string) => {
-    if (!queryText) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
-    }
-    setIsSearching(true);
-    console.log("Searching for:", queryText);
-
-    // Client-side filtering
-    const results = audioEntries.filter(entry => 
-      entry.transcription.toLowerCase().includes(queryText.toLowerCase()) ||
-      entry.title.toLowerCase().includes(queryText.toLowerCase()) ||
-      entry.tags.some(tag => tag.toLowerCase().includes(queryText.toLowerCase()))
-    );
-
-    console.log("Search results found:", results.length);
-
-    // Sort results by createdAt descending (newest first)
-    results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    
-    setSearchResults(results);
-  };
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setIsSearching(searchQuery.trim().length > 0);
+  }, [searchQuery]);
 
   const handleDelete = async (entryId: string) => {
     if (!user) return;
@@ -89,7 +77,6 @@ const Dashboard: React.FC = () => {
 
       if (response.ok) {
         setAudioEntries(prev => prev.filter(entry => entry.entryId !== entryId));
-        setSearchResults(prev => prev.filter(entry => entry.entryId !== entryId));
         alert("Entry deleted successfully.");
       } else {
         const errData = await response.json();
@@ -101,14 +88,44 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleDateChange = (newDate: Date | Date[]) => {
+    setDate(newDate);
+    setCurrentPage(1); // Reset to page 1 when date filter changes
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleClearSearch = () => {
+    // This will be handled by the parent component (App) that manages searchQuery
+    // For now, we just update the local state
+    setIsSearching(false);
+    setCurrentPage(1);
+  };
+
+  const handleChat = (entry: AudioEntry) => {
+    setActiveChatEntry(entry);
+  };
+
   const getFilteredEntries = () => {
-    if (isSearching) {
-      return searchResults;
+    let filtered = audioEntries;
+
+    // Apply search filter if query exists
+    if (searchQuery && searchQuery.trim()) {
+      filtered = filtered.filter(entry => 
+        entry.transcription.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        entry.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+      // Sort search results by createdAt descending (newest first)
+      filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return filtered;
     }
     
-    // Filter by selected date
+    // Filter by selected date when not searching
     const selectedDate = Array.isArray(date) ? date[0] : date;
-    return audioEntries.filter(entry => {
+    return filtered.filter(entry => {
       const entryDate = entry.createdAt;
       return (
         entryDate.getDate() === selectedDate.getDate() &&
@@ -118,22 +135,17 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  const entriesToDisplay = getFilteredEntries();
+  const filteredEntries = getFilteredEntries();
+  const totalPages = Math.ceil(filteredEntries.length / entriesPerPage);
 
-  const tileContent = ({ date, view }: { date: Date; view: string }) => {
-    if (view === 'month') {
-      const hasEntry = audioEntries.some(entry => {
-        const entryDate = new Date(entry.createdAt);
-        return (
-          entryDate.getDate() === date.getDate() &&
-          entryDate.getMonth() === date.getMonth() &&
-          entryDate.getFullYear() === date.getFullYear()
-        );
-      });
-      return hasEntry ? <p style={{ color: 'red', fontSize: '20px', margin: 0 }}>•</p> : null;
-    }
-    return null;
-  };
+  // Calculate start and end indices for pagination
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const endIndex = startIndex + entriesPerPage;
+
+  // Slice entries for current page, handling edge cases
+  const entriesToDisplay = filteredEntries.length > 0 
+    ? filteredEntries.slice(startIndex, endIndex)
+    : [];
 
   if (loading) return <p>Loading...</p>;
   if (!user) return <p>Please log in to view your dashboard.</p>;
@@ -141,30 +153,28 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <h1>Dashboard</h1>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-        <Calendar
-          onChange={setDate as any}
-          value={date as any}
-          tileContent={tileContent}
+      <div className="dashboard-container">
+        <LeftPanel
+          audioEntries={audioEntries}
+          selectedDate={date}
+          onDateSelect={handleDateChange}
+        />
+        <RightPanel
+          entries={entriesToDisplay}
+          totalFilteredCount={filteredEntries.length}
+          currentPage={currentPage}
+          entriesPerPage={entriesPerPage}
+          totalPages={totalPages}
+          isSearching={isSearching}
+          searchQuery={searchQuery}
+          hasAnyEntries={audioEntries.length > 0}
+          isDateFiltered={!isSearching}
+          onPageChange={handlePageChange}
+          onClearSearch={handleClearSearch}
+          onDelete={handleDelete}
+          onChat={handleChat}
         />
       </div>
-      <SearchBar onSearch={handleSearch} />
-      {entriesToDisplay.length === 0 ? (
-        <p>No entries found for this date or search.</p>
-      ) : (
-        entriesToDisplay.map(entry => (
-          <div key={entry.entryId} className="audio-entry-card">
-            <h2>{entry.title}</h2>
-            <p>Date: {entry.createdAt.toLocaleDateString()} {entry.createdAt.toLocaleTimeString()}</p>
-            <audio controls src={entry.audioUrl}></audio>
-            <p>Tags: {entry.tags.join(', ')}</p>
-            <p>Transcription: {entry.transcription}</p>
-            <p>AI Response: {entry.aiResponse}</p>
-            <button onClick={() => setActiveChatEntry(entry)} style={{ backgroundColor: '#1976d2', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', marginTop: '10px', marginRight: '10px' }}>Chat</button>
-            <button onClick={() => handleDelete(entry.entryId)} style={{ backgroundColor: '#dc004e', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', marginTop: '10px' }}>Delete</button>
-          </div>
-        ))
-      )}
       {activeChatEntry && (
         <ChatPanel
           entryId={activeChatEntry.entryId}
