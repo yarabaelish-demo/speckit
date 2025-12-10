@@ -1,0 +1,130 @@
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import request from 'supertest';
+import express from 'express';
+import { db, storage, auth } from '#config/firebaseAdmin';
+
+// Mock the AI services before importing
+jest.mock('#services/transcriptionService', () => ({
+  transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
+}));
+jest.mock('#services/aiTherapistService', () => ({
+  getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
+}));
+
+// Import after mocking
+import { router as audioApiRouter } from '#api/audio';
+import { uploadAudio } from '#services/audioService';
+
+// Create a test Express app
+const app = express();
+app.use(express.json());
+app.use('/audio', audioApiRouter);
+
+// --- Test Suite ---
+describe('Audio API Search Endpoint Integration', () => {
+    const SEARCH_USER_ID = 'search-test-user-id';
+
+    beforeEach(async () => {
+        await clearFirestore();
+        await clearAuth();
+        jest.clearAllMocks();
+        // Mock auth verification
+        jest.spyOn(auth, 'verifyIdToken').mockResolvedValue({ uid: SEARCH_USER_ID } as any);
+    });
+
+    it('should return 400 if query parameter \'q\' is missing', async () => {
+        const res = await request(app)
+            .get('/audio/search')
+            .set('Authorization', 'Bearer mock-token');
+
+        expect(res.statusCode).toEqual(400);
+        expect(res.body).toEqual({ error: 'Query parameter "q" is required.' });
+    });
+
+    it('should return 401 if no token provided', async () => {
+        const res = await request(app).get('/audio/search?q=test');
+        expect(res.statusCode).toEqual(401);
+    });
+
+    it('should return audio entries matching the search query', async () => {
+        // Explicitly update Firestore documents with specific transcriptions for search
+        // The API uses a prefix search (starts-with), so the transcription must start with the query.
+        const userAudioCollection = db.collection(`users/${SEARCH_USER_ID}/audioEntries`);
+        await userAudioCollection.add({ transcription: 'nature walk and trees' });
+        await userAudioCollection.add({ transcription: 'city buildings and cars' });
+        await userAudioCollection.add({ transcription: 'nature hike in the mountains' });
+
+        const res = await request(app)
+            .get('/audio/search')
+            .query({ q: 'nature' })
+            .set('Authorization', 'Bearer mock-token');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.length).toBe(2);
+        // The results might not be in order, so check for existence
+        const returnedIds = res.body.map((entry: any) => entry.transcription);
+        expect(returnedIds).toContain('nature walk and trees');
+        expect(returnedIds).toContain('nature hike in the mountains');
+    }, 20000); // Increased timeout for file operations and Firestore updates
+
+    it('should return an empty array if no audio entries match the search query', async () => {
+        // Manually add an entry to 'audioEntries' collection which the search endpoint queries
+        const userAudioCollection = db.collection(`users/${SEARCH_USER_ID}/audioEntries`);
+        await userAudioCollection.add({
+            userId: SEARCH_USER_ID,
+            title: 'No Match Test',
+            transcription: 'unique transcription',
+            tags: [],
+            createdAt: new Date()
+        });
+
+        const res = await request(app)
+            .get('/audio/search')
+            .query({ q: 'nomatch' })
+            .set('Authorization', 'Bearer mock-token');
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body).toEqual([]);
+    }, 15000);
+});
+
+// --- Emulator Cleanup Functions ---
+const clearFirestore = async () => {
+    const collections = await db.listCollections();
+    for (const collection of collections) {
+        const querySnapshot = await collection.get();
+        if (querySnapshot.empty) continue;
+        
+        const batch = db.batch();
+        for (const doc of querySnapshot.docs) {
+            // Recursively delete subcollections if necessary, 
+            // but for this test we mostly care about the root collections or user collections
+            // Deleting the user document itself doesn't delete subcollections in Firestore, 
+            // but in the test environment we might need to delete `users/{uid}/audioEntries` specifically.
+            // For simplicity in this test context:
+             batch.delete(doc.ref);
+        }
+        await batch.commit();
+    }
+    // Also clear specific user subcollections if they aren't covered by listCollections (which lists root collections)
+    // However, since we are creating dynamic paths, we might need to explicitly target them or use recursive delete logic.
+    // For this specific test, we know the path:
+    const searchUserEntries = await db.collection(`users/search-test-user-id/audioEntries`).get();
+    if (!searchUserEntries.empty) {
+        const batch = db.batch();
+        searchUserEntries.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+    }
+};
+
+const clearAuth = async () => {
+    try {
+        const { users } = await auth.listUsers();
+        if (users.length > 0) {
+            await auth.deleteUsers(users.map((u: { uid: any; }) => u.uid));
+        }
+    } catch (error) {
+        console.error("Error clearing auth emulator", error)
+    }
+};
+
