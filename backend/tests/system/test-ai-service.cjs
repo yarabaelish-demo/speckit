@@ -2,12 +2,12 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// Import the compiled JavaScript modules
-const { storage } = require('./dist/config/firebaseAdmin.js');
-const { transcribeAudio } = require('./dist/services/transcriptionService.js');
+// Import the compiled JavaScript modules (adjust paths for system test location)
+const { storage } = require('../../dist/config/firebaseAdmin.js');
+const { transcribeAudio } = require('../../dist/services/transcriptionService.js');
 
 const AUDIO_FILENAME = 'sample.m4a';
-const AUDIO_FILE_PATH = path.join(__dirname, 'tests/unit/sample.m4a');
+const AUDIO_FILE_PATH = path.join(__dirname, '../unit/sample.m4a');
 const BUCKET_NAME = process.env.GCLOUD_PROJECT ? `${process.env.GCLOUD_PROJECT}.firebasestorage.app` : 'yara-speckit.firebasestorage.app';
 const REMOTE_PATH = `system-tests/${Date.now()}-${AUDIO_FILENAME}`;
 

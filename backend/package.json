@@ -11,7 +11,7 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "test": "jest --testPathIgnorePatterns \"/tests/system/\"",
-    "test:ai": "node test-ai-service.cjs"
+    "test:ai": "node tests/system/test-ai-service.cjs"
   },
   "imports": {
     "#services/*": "./dist/services/*.js",
