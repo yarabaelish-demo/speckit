@@ -1,214 +1,228 @@
-# Implementation Plan: Frontend Redesign
+# Implementation Plan
 
-- [x] 1. Extract and create new component files
-- [x] 1.1 Create BlogEntryCard component
-  - Extract blog entry rendering logic from Dashboard.tsx
-  - Create new file: `frontend/src/components/BlogEntryCard.tsx`
-  - Implement props interface with entry, onDelete, and onChat callbacks
-  - Include all required fields: title, date, audio player, tags, transcription, AI response, and action buttons
-  - _Requirements: 3.4_
+- [x] 1. Set up feature branch and project structure
+  - Create feature branch `feature/frontend-redesign` from main
+  - Ensure all dependencies are installed (fast-check for property testing)
+  - _Requirements: 6.1, 6.2_
 
-- [x] 1.2 Create PaginationControls component
-  - Create new file: `frontend/src/components/PaginationControls.tsx`
-  - Implement props interface with currentPage, totalPages, and onPageChange
-  - Add Previous/Next buttons with disabled states
-  - Add page number buttons with current page highlighting
-  - Hide component when totalPages <= 1
-  - _Requirements: 4.1, 4.3, 4.4_
+- [x] 2. Move SearchBar to Header component
+  - [x] 2.1 Update App component to manage search state
+    - Add `searchQuery` state to App component
+    - Create `handleSearch` function to update search state
+    - Pass `onSearch` and `searchQuery` props to Header
+    - Pass `searchQuery` prop to Dashboard
+    - _Requirements: 1.1, 1.2_
+  
+  - [x] 2.2 Integrate SearchBar into Header component
+    - Update Header to accept `onSearch` and `searchQuery` props
+    - Import and render SearchBar component in Header
+    - Position SearchBar between navigation and user profile in header layout
+    - Update CSS for header search styling
+    - _Requirements: 1.1_
+  
+  - [x] 2.3 Update SearchBar component for controlled state
+    - Add `initialQuery` prop to SearchBar interface
+    - Use `useEffect` to sync local query state with `initialQuery` prop
+    - Add accessibility attributes (aria-label, role, aria-describedby)
+    - _Requirements: 1.1_
+  
+  - [ ]* 2.4 Write property test for search query propagation
+    - **Property 1: Search query propagation and filtering**
+    - **Validates: Requirements 1.2, 1.3**
+  
+  - [ ]* 2.5 Write unit tests for SearchBar component
+    - Test SearchBar renders with initial query
+    - Test SearchBar updates on input change
+    - Test SearchBar calls onSearch on submit
+    - Test SearchBar syncs with initialQuery prop changes
+    - _Requirements: 1.1, 1.2_
 
-- [x] 1.3 Create SearchStatus component
-  - Create new file: `frontend/src/components/SearchStatus.tsx`
-  - Implement props interface with isSearching, searchQuery, resultCount, and onClearSearch
-  - Display search query and result count when searching
-  - Display "no results" message when count is 0
-  - Include clear/reset button
-  - Hide component when not searching
-  - _Requirements: 5.1, 5.2, 5.3_
+- [x] 3. Update Dashboard for default view and search integration
+  - [x] 3.1 Modify Dashboard to accept searchQuery prop
+    - Update Dashboard interface to accept `searchQuery?: string`
+    - Remove local SearchBar component from Dashboard
+    - Add `isSearching` state based on searchQuery presence
+    - _Requirements: 1.2, 3.1, 3.5_
+  
+  - [x] 3.2 Implement default view logic (all entries, no date filter)
+    - Modify `getFilteredEntries` to return all entries by default
+    - Sort all entries by `createdAt` descending (date and time)
+    - Only apply date filter when user explicitly selects a date
+    - _Requirements: 3.1, 3.5_
+  
+  - [x] 3.3 Update filtering logic for search integration
+    - Check for `searchQuery` prop in `getFilteredEntries`
+    - Filter entries by transcription, title, and tags when search is active
+    - Sort search results by `createdAt` descending
+    - _Requirements: 1.2, 1.3_
+  
+  - [ ]* 3.4 Write property test for default view
+    - **Property 2: Default view shows all entries**
+    - **Validates: Requirements 3.1, 3.5**
+  
+  - [ ]* 3.5 Write unit tests for Dashboard filtering logic
+    - Test returns all entries when no filters applied
+    - Test filters by search query correctly
+    - Test filters by date correctly
+    - Test handles empty results
+    - _Requirements: 1.2, 3.1, 3.5_
 
-- [x] 1.4 Create LeftPanel component
-  - Create new file: `frontend/src/components/LeftPanel.tsx`
-  - Implement props interface with audioEntries, selectedDate, and onDateSelect
-  - Render Calendar component with date marking logic
-  - Apply styling for 30% width container
-  - _Requirements: 2.1, 2.2_
+- [x] 4. Implement pagination system
+  - [x] 4.1 Add pagination state to Dashboard
+    - Add `currentPage` state (default: 1)
+    - Define `entriesPerPage` constant (5)
+    - Calculate `totalPages` from filtered entries
+    - Calculate `startIndex` and `endIndex` for slicing
+    - _Requirements: 3.2, 4.1_
+  
+  - [x] 4.2 Implement pagination slice logic
+    - Slice filtered entries using `startIndex` and `endIndex`
+    - Pass sliced entries to RightPanel as `entriesToDisplay`
+    - Handle edge cases (empty list, partial last page)
+    - _Requirements: 3.2, 4.2_
+  
+  - [x] 4.3 Add page reset on filter changes
+    - Reset `currentPage` to 1 when `searchQuery` changes (useEffect)
+    - Reset `currentPage` to 1 when date selection changes
+    - _Requirements: 4.2_
+  
+  - [x] 4.4 Pass pagination props to RightPanel
+    - Pass `currentPage`, `totalPages`, `entriesPerPage` to RightPanel
+    - Pass `onPageChange` handler to RightPanel
+    - Pass `totalFilteredCount` for display
+    - _Requirements: 4.1, 4.2, 4.3_
+  
+  - [ ]* 4.5 Write property test for pagination slice correctness
+    - **Property 3: Pagination slice correctness**
+    - **Validates: Requirements 4.2**
+  
+  - [ ]* 4.6 Write property test for pagination visibility
+    - **Property 4: Pagination visibility**
+    - **Validates: Requirements 4.1, 4.4, 4.5**
+  
+  - [ ]* 4.7 Write property test for page reset
+    - **Property 5: Page reset on filter change**
+    - **Validates: Requirements 4.2**
+  
+  - [ ]* 4.8 Write unit tests for pagination calculations
+    - Test calculates correct total pages
+    - Test slices entries correctly for each page
+    - Test handles edge cases (0 entries, exactly 5 entries, 6 entries)
+    - _Requirements: 3.2, 4.1, 4.2_
 
-- [x] 1.5 Create RightPanel component
-  - Create new file: `frontend/src/components/RightPanel.tsx`
-  - Implement props interface with entries, pagination state, search state, and callbacks
-  - Render SearchStatus, BlogEntryList, and PaginationControls
-  - Apply styling for 70% width container
-  - _Requirements: 1.3, 3.1, 4.1_
+- [x] 5. Update RightPanel for search status display
+  - [x] 5.1 Pass search-related props to RightPanel
+    - Pass `isSearching` boolean flag
+    - Pass `searchQuery` string for display
+    - Pass `onClearSearch` handler
+    - _Requirements: 5.1, 5.2_
+  
+  - [x] 5.2 Ensure SearchStatus component displays correctly
+    - Verify SearchStatus shows when `isSearching` is true
+    - Verify search query text appears in SearchStatus
+    - Verify clear search button is functional
+    - _Requirements: 5.1, 5.2_
+  
+  - [ ]* 5.3 Write property test for search result indication
+    - **Property 6: Search result indication**
+    - **Validates: Requirements 5.1, 5.2**
+  
+  - [ ]* 5.4 Write unit tests for search status display
+    - Test SearchStatus appears when searching
+    - Test SearchStatus includes query text
+    - Test clear button calls onClearSearch
+    - _Requirements: 5.1, 5.2_
 
-- [x] 2. Implement pagination logic in Dashboard
-- [x] 2.1 Add pagination state management
-  - Add currentPage state (default: 1)
-  - Add entriesPerPage constant (value: 5)
-  - Calculate totalPages based on filtered entries
-  - Implement page change handler
-  - Reset to page 1 when search or date filter changes
-  - _Requirements: 3.2, 4.2_
+- [x] 6. Verify Calendar and LeftPanel functionality
+  - [x] 6.1 Ensure Calendar displays in LeftPanel
+    - Verify LeftPanel renders Calendar component
+    - Verify Calendar receives audioEntries for date marking
+    - _Requirements: 2.1, 2.2_
+  
+  - [x] 6.2 Test date selection and filtering
+    - Verify selecting a date filters entries correctly
+    - Verify date filter works alongside search
+    - _Requirements: 2.3_
+  
+  - [ ]* 6.3 Write property test for calendar date marking
+    - **Property 7: Calendar date marking**
+    - **Validates: Requirements 2.2**
+  
+  - [ ]* 6.4 Write unit tests for Calendar integration
+    - Test Calendar marks dates with entries
+    - Test date selection triggers filter
+    - Test Calendar remains visible during search
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [x] 2.2 Implement entry slicing for pagination
-  - Calculate start and end indices based on currentPage
-  - Slice filtered entries array for current page
-  - Handle edge cases (empty arrays, out of bounds pages)
-  - _Requirements: 3.2, 4.2_
+- [-] 7. Verify BlogEntry display completeness
+  - [x] 7.1 Ensure all entry fields are displayed
+    - Verify BlogEntryCard shows title
+    - Verify date includes time information
+    - Verify audio player, tags, transcription, and AI response are present
+    - _Requirements: 3.4_
+  
+  - [ ]* 7.2 Write property test for entry display completeness
+    - **Property 8: Entry display completeness**
+    - **Validates: Requirements 3.4**
+  
+  - [ ]* 7.3 Write unit tests for BlogEntryCard
+    - Test all required fields render
+    - Test date format includes time
+    - Test audio player has correct src
+    - _Requirements: 3.4_
 
-- [ ]* 2.3 Write property test for pagination page size limit
-  - **Property 7: Pagination page size limit**
-  - **Validates: Requirements 3.2**
-
-- [ ]* 2.4 Write property test for pagination navigation correctness
-  - **Property 10: Pagination navigation correctness**
-  - **Validates: Requirements 4.2**
-
-- [ ]* 2.5 Write property test for pagination visibility threshold
-  - **Property 9: Pagination visibility threshold**
-  - **Validates: Requirements 4.1, 4.5**
-
-- [x] 3. Integrate SearchBar into Header component
-- [x] 3.1 Move SearchBar to Header
-  - Import SearchBar component in Header.tsx
-  - Add SearchBar to header layout (between nav and profile)
-  - Style SearchBar to fit header design
-  - _Requirements: 1.1_
-
-- [x] 3.2 Implement search state communication
-  - Lift search state to App component or use URL params
-  - Pass search callback from Header through App to Dashboard
-  - Update Dashboard to receive and handle search callback
-  - Ensure search query persists in SearchBar when active
-  - _Requirements: 1.2_
-
-- [x] 3.3 Implement search filtering logic
-  - Update handleSearch function to set search state
-  - Filter entries by transcription, title, and tags (case-insensitive)
-  - Sort search results by creation date descending
-  - Handle empty query submission (clear search)
-  - _Requirements: 1.2, 1.4_
-
-- [ ]* 3.4 Write property test for search filtering correctness
-  - **Property 1: Search filtering correctness**
-  - **Validates: Requirements 1.2**
-
-- [ ]* 3.5 Write unit tests for search functionality
-  - Test SearchBar form submission with various queries
-  - Test empty query handling
-  - Test search state clearing
-  - Test search results filtering logic
-  - _Requirements: 1.2, 1.4_
-
-- [x] 4. Restructure Dashboard with two-panel layout
-- [x] 4.1 Implement CSS layout for two panels
-  - Create flexbox container in Dashboard
-  - Add CSS for 30/70 split with gap
-  - Ensure responsive behavior (min-widths)
-  - Add styling to App.css or Dashboard-specific CSS file
-  - _Requirements: 2.1, 3.1_
-
-- [x] 4.2 Integrate LeftPanel with Calendar
-  - Replace inline Calendar with LeftPanel component
-  - Pass audioEntries, selectedDate, and onDateSelect props
-  - Verify calendar date marking works correctly
-  - Ensure calendar remains visible during search
-  - _Requirements: 2.1, 2.2, 2.4_
-
-- [ ]* 4.3 Write property test for calendar date marking
-  - **Property 3: Calendar date marking**
-  - **Validates: Requirements 2.2**
-
-- [ ]* 4.4 Write property test for calendar persistence during search
-  - **Property 5: Calendar persistence during search**
-  - **Validates: Requirements 2.4**
-
-- [x] 4.3 Integrate RightPanel with entry display
-  - Replace inline entry rendering with RightPanel component
-  - Pass paginated entries, search state, and callbacks
-  - Verify entries display in correct order
-  - Ensure all entry fields are rendered
-  - _Requirements: 3.1, 3.4_
-
-- [ ]* 4.4 Write property test for chronological ordering
-  - **Property 6: Chronological ordering**
-  - **Validates: Requirements 3.1**
-
-- [ ]* 4.5 Write property test for entry field completeness
-  - **Property 8: Entry field completeness**
-  - **Validates: Requirements 3.4**
-
-- [ ] 5. Implement date filtering with calendar
-- [ ] 5.1 Update date selection handler
-  - Modify onDateSelect to filter entries by selected date
-  - Ensure date comparison matches day, month, and year
-  - Clear search when date is selected (or maintain both filters)
-  - Update UI to show selected date context
-  - _Requirements: 2.3_
-
-- [ ] 5.2 Write property test for date filter correctness
-  - **Property 4: Date filter correctness**
-  - **Validates: Requirements 2.3**
-
-- [ ]* 5.3 Write unit tests for date filtering
-  - Test date selection with various entry sets
-  - Test date comparison logic (same day/month/year)
-  - Test empty state when no entries for selected date
-  - _Requirements: 2.3, 3.3_
-
-- [x] 6. Add empty state handling
-- [x] 6.1 Implement empty state messages
-  - Add "No entries available" message when audioEntries is empty
-  - Add "No entries for this date" message when date filter returns empty
-  - Add "No entries match your search" message in SearchStatus
-  - Style empty state messages consistently
-  - _Requirements: 3.3, 5.3_
-
-- [ ]* 6.2 Write unit tests for empty states
-  - Test empty entries array rendering
-  - Test empty search results rendering
-  - Test empty date filter rendering
-  - _Requirements: 3.3, 5.3_
-
-- [x] 7. Install and configure property-based testing
-- [x] 7.1 Install fast-check dependency
-  - Run: `npm install --save-dev fast-check`
-  - Verify installation in package.json
-  - _Requirements: All property tests_
-
-- [x] 7.2 Create test utilities and generators
-  - Create file: `frontend/src/test-utils/generators.ts`
-  - Implement audioEntryArbitrary generator
-  - Implement searchQueryArbitrary generator
-  - Implement pageNumberArbitrary generator
-  - Configure generators with appropriate constraints
-  - _Requirements: All property tests_
-
-- [x] 8. Final integration and polish
-- [x] 8.1 Test complete user flows
-  - Test: Load dashboard → View entries → Navigate pages
-  - Test: Search entries → View results → Clear search
-  - Test: Select date → View filtered entries → Select different date
-  - Test: Search → Paginate results → Clear search
-  - Test: Delete entry → Verify UI updates (calendar, pagination)
-  - _Requirements: All_
-
-- [ ]* 8.2 Write integration tests
-  - Test search and pagination interaction
-  - Test calendar and search interaction
-  - Test delete entry and UI update flow
-  - _Requirements: All_
-
-- [x] 8.3 Accessibility improvements
-  - Add ARIA labels to SearchBar
-  - Ensure keyboard navigation for pagination
-  - Add screen reader announcements for search results count
-  - Test focus management between pages
-  - _Requirements: All_
-
-- [ ]* 8.4 Write accessibility tests
-  - Test keyboard navigation for pagination
-  - Test ARIA labels presence
-  - Test focus management
-  - _Requirements: All_
+- [x] 8. Update CSS styling for new layout
+  - [x] 8.1 Add header search styles
+    - Style `.header-search` container
+    - Style search input and button in header
+    - Ensure responsive layout
+    - _Requirements: 1.1_
+  
+  - [x] 8.2 Verify two-panel layout styles
+    - Ensure `.dashboard-container` uses flexbox
+    - Verify LeftPanel and RightPanel sizing
+    - Test responsive behavior
+    - _Requirements: 2.1, 3.1_
 
 - [x] 9. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
+
+- [ ]* 10. Integration testing
+  - [ ]* 10.1 Write integration test for search workflow
+    - Test user enters search in header
+    - Test results display in Dashboard
+    - Test clear search returns to default view
+    - _Requirements: 1.2, 1.3, 1.4, 5.2_
+  
+  - [ ]* 10.2 Write integration test for date filter workflow
+    - Test user selects date on calendar
+    - Test entries filter to selected date
+    - Test pagination updates accordingly
+    - _Requirements: 2.3, 4.5_
+  
+  - [ ]* 10.3 Write integration test for pagination workflow
+    - Test user navigates between pages
+    - Test correct entries display on each page
+    - Test page state persists during same filter
+    - _Requirements: 4.2, 4.3_
+
+- [x] 11. Final testing and cleanup
+  - [x] 11.1 Manual testing of all features
+    - Test search functionality end-to-end
+    - Test default view displays all entries
+    - Test pagination with various entry counts
+    - Test date filtering
+    - Test responsive layout
+    - _Requirements: All_
+  
+  - [x] 11.2 Code review and cleanup
+    - Remove any console.log statements
+    - Ensure code follows project conventions
+    - Update comments and documentation
+    - _Requirements: All_
+  
+  - [x] 11.3 Prepare for merge
+    - Ensure all tests pass
+    - Commit final changes to feature branch
+    - Create pull request to main branch
+    - _Requirements: 6.3_

@@ -5,3 +5,5 @@
 test.skip('App component test skipped', () => {
   // Skipped - see comment above
 });
+
+export {}

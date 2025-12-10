@@ -45,14 +45,15 @@ This document specifies the requirements for redesigning the frontend user inter
 
 ### Requirement 3
 
-**User Story:** As a user, I want blog entries to be displayed in the right panel in reverse chronological order, so that I can see my most recent entries first.
+**User Story:** As a user, I want blog entries to be displayed in the right panel in reverse chronological order by default, so that I can see my most recent entries first without needing to select a specific date.
 
 #### Acceptance Criteria
 
-1. WHEN the Dashboard loads without an active search THEN the Application SHALL display BlogEntries in the RightPanel sorted by creation date in descending order
+1. WHEN the Dashboard loads without an active search THEN the Application SHALL display all BlogEntries in the RightPanel sorted by creation date and time in descending order
 2. WHEN BlogEntries are displayed THEN the Application SHALL show a maximum of 5 entries per page
 3. WHEN a User has no BlogEntries THEN the Application SHALL display a message indicating no entries are available
-4. WHEN displaying BlogEntries THEN the Application SHALL include the title, date, audio player, tags, transcription, and AI response for each entry
+4. WHEN displaying BlogEntries THEN the Application SHALL include the title, date with time, audio player, tags, transcription, and AI response for each entry
+5. WHEN the Dashboard loads THEN the Application SHALL display BlogEntries without any date filter applied by default
 
 ### Requirement 4
 

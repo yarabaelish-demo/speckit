@@ -9,13 +9,14 @@ import RightPanel from '../components/RightPanel';
 
 interface DashboardProps {
   searchQuery?: string;
+  onClearSearch?: () => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
+const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '', onClearSearch }) => {
   const [audioEntries, setAudioEntries] = useState<AudioEntry[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [date, setDate] = useState<Date | Date[]>(new Date());
+  const [date, setDate] = useState<Date | Date[] | null>(null);
   const [activeChatEntry, setActiveChatEntry] = useState<AudioEntry | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   
@@ -39,9 +40,7 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
 
   const fetchAudioEntries = async (uid: string) => {
     try {
-      console.log("Fetching entries for user:", uid);
       const querySnapshot = await getDocs(collection(db, `users/${uid}/audioEntries`));
-      console.log("Entries found:", querySnapshot.size);
       const entries = querySnapshot.docs.map(doc => {
         const data = doc.data();
         // Convert Firestore Timestamp to JS Date
@@ -88,7 +87,7 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
     }
   };
 
-  const handleDateChange = (newDate: Date | Date[]) => {
+  const handleDateChange = (newDate: Date | Date[] | null) => {
     setDate(newDate);
     setCurrentPage(1); // Reset to page 1 when date filter changes
   };
@@ -98,8 +97,11 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
   };
 
   const handleClearSearch = () => {
-    // This will be handled by the parent component (App) that manages searchQuery
-    // For now, we just update the local state
+    // Call the parent component's clear search handler
+    if (onClearSearch) {
+      onClearSearch();
+    }
+    // Update local state
     setIsSearching(false);
     setCurrentPage(1);
   };
@@ -123,16 +125,22 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
       return filtered;
     }
     
-    // Filter by selected date when not searching
-    const selectedDate = Array.isArray(date) ? date[0] : date;
-    return filtered.filter(entry => {
-      const entryDate = entry.createdAt;
-      return (
-        entryDate.getDate() === selectedDate.getDate() &&
-        entryDate.getMonth() === selectedDate.getMonth() &&
-        entryDate.getFullYear() === selectedDate.getFullYear()
-      );
-    });
+    // Filter by selected date only when user explicitly selects a date
+    if (date !== null) {
+      const selectedDate = Array.isArray(date) ? date[0] : date;
+      filtered = filtered.filter(entry => {
+        const entryDate = entry.createdAt;
+        return (
+          entryDate.getDate() === selectedDate.getDate() &&
+          entryDate.getMonth() === selectedDate.getMonth() &&
+          entryDate.getFullYear() === selectedDate.getFullYear()
+        );
+      });
+    }
+    
+    // Sort all entries by createdAt descending (newest first) - default view
+    filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return filtered;
   };
 
   const filteredEntries = getFilteredEntries();
@@ -156,7 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
       <div className="dashboard-container">
         <LeftPanel
           audioEntries={audioEntries}
-          selectedDate={date}
+          selectedDate={date || new Date()}
           onDateSelect={handleDateChange}
         />
         <RightPanel
@@ -168,7 +176,7 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '' }) => {
           isSearching={isSearching}
           searchQuery={searchQuery}
           hasAnyEntries={audioEntries.length > 0}
-          isDateFiltered={!isSearching}
+          isDateFiltered={!isSearching && date !== null}
           onPageChange={handlePageChange}
           onClearSearch={handleClearSearch}
           onDelete={handleDelete}

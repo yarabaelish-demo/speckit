@@ -12,7 +12,7 @@ const BlogEntryCard: React.FC<BlogEntryCardProps> = ({ entry, onDelete, onChat }
     <div className="audio-entry-card">
       <h2>{entry.title}</h2>
       <p>Date: {entry.createdAt.toLocaleDateString()} {entry.createdAt.toLocaleTimeString()}</p>
-      <audio controls src={entry.audioUrl}></audio>
+      <audio controls src={entry.audioUrl} data-testid="audio-player"></audio>
       <p>Tags: {entry.tags.join(', ')}</p>
       <p>Transcription: {entry.transcription}</p>
       <p>AI Response: {entry.aiResponse}</p>

@@ -53,10 +53,7 @@ const RightPanel: React.FC<RightPanelProps> = ({
   const emptyMessage = getEmptyStateMessage();
 
   return (
-    <div style={{ 
-      flex: '1', 
-      minWidth: '0'
-    }}>
+    <div className="right-panel">
       <SearchStatus
         isSearching={isSearching}
         searchQuery={searchQuery}

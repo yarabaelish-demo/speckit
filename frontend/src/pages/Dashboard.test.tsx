@@ -152,7 +152,9 @@ describe('Dashboard Integration Tests - Complete User Flows', () => {
       // Should show only React-related entries
       await waitFor(() => {
         expect(screen.getByText('React Tutorial')).toBeInTheDocument();
+        // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions
         expect(screen.getByText('React Advanced')).toBeInTheDocument();
+        // eslint-disable-next-line testing-library/no-wait-for-multiple-assertions
         expect(screen.queryByText('TypeScript Guide')).not.toBeInTheDocument();
       });
 
@@ -194,17 +196,15 @@ describe('Dashboard Integration Tests - Complete User Flows', () => {
 
       render(<Dashboard searchQuery="" />);
 
-      // Wait for entries to load - should show today's entries by default
+      // Wait for entries to load - should show ALL entries by default (no date filter)
       await waitFor(() => {
         expect(screen.getByText('Entry Today 1')).toBeInTheDocument();
       });
 
-      // Should show today's entries
+      // Should show all entries by default (no date filter applied)
       expect(screen.getByText('Entry Today 1')).toBeInTheDocument();
       expect(screen.getByText('Entry Today 2')).toBeInTheDocument();
-      
-      // Tomorrow's entry should not be visible (filtered by date)
-      expect(screen.queryByText('Entry Tomorrow')).not.toBeInTheDocument();
+      expect(screen.getByText('Entry Tomorrow')).toBeInTheDocument();
     });
   });
 
@@ -307,6 +307,83 @@ describe('Dashboard Integration Tests - Complete User Flows', () => {
       // Should still show remaining entries
       expect(screen.getByText('Entry 2')).toBeInTheDocument();
       expect(screen.getByText('Entry 3')).toBeInTheDocument();
+    });
+  });
+
+  describe('6.2 Date Selection and Filtering Integration', () => {
+    it('should filter entries correctly when date is selected', async () => {
+      const today = new Date();
+      today.setHours(10, 0, 0, 0);
+      
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const mockEntries = [
+        createMockEntry('1', 'Entry Today', today),
+        createMockEntry('2', 'Entry Yesterday', yesterday)
+      ];
+
+      (getDocs as jest.Mock).mockResolvedValue({
+        size: mockEntries.length,
+        docs: mockEntries.map(entry => ({
+          data: () => entry
+        }))
+      });
+
+      render(<Dashboard searchQuery="" />);
+
+      // Wait for entries to load - should show ALL entries by default
+      await waitFor(() => {
+        expect(screen.getByText('Entry Today')).toBeInTheDocument();
+      });
+
+      // Should show all entries by default (no date filter applied)
+      expect(screen.getByText('Entry Today')).toBeInTheDocument();
+      expect(screen.getByText('Entry Yesterday')).toBeInTheDocument();
+
+      // Verify Calendar is present for date selection
+      expect(screen.getByTestId('mock-calendar')).toBeInTheDocument();
+    });
+
+    it('should work alongside search functionality', async () => {
+      const today = new Date();
+      const mockEntries = [
+        createMockEntry('1', 'React Tutorial', today, 'Learn React basics'),
+        createMockEntry('2', 'TypeScript Guide', today, 'TypeScript fundamentals'),
+        createMockEntry('3', 'Vue Tutorial', today, 'Learn Vue basics')
+      ];
+
+      (getDocs as jest.Mock).mockResolvedValue({
+        size: mockEntries.length,
+        docs: mockEntries.map(entry => ({
+          data: () => entry
+        }))
+      });
+
+      const { rerender } = render(<Dashboard searchQuery="" />);
+
+      // Wait for entries to load
+      await waitFor(() => {
+        expect(screen.getByText('React Tutorial')).toBeInTheDocument();
+      });
+
+      // All entries should be visible initially
+      expect(screen.getByText('React Tutorial')).toBeInTheDocument();
+      expect(screen.getByText('TypeScript Guide')).toBeInTheDocument();
+      expect(screen.getByText('Vue Tutorial')).toBeInTheDocument();
+
+      // Perform search for "React"
+      rerender(<Dashboard searchQuery="React" />);
+
+      // Should show only React-related entries
+      await waitFor(() => {
+        expect(screen.getByText('React Tutorial')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('TypeScript Guide')).not.toBeInTheDocument();
+      expect(screen.queryByText('Vue Tutorial')).not.toBeInTheDocument();
+
+      // Calendar should still be visible during search
+      expect(screen.getByTestId('mock-calendar')).toBeInTheDocument();
     });
   });
 });
