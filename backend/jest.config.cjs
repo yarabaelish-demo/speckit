@@ -21,5 +21,8 @@ module.exports = {
       }
     }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid|@firebase|firebase)/)'
+  ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 };

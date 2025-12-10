@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "type": "module",
-
   "directories": {
     "test": "tests"
   },
@@ -11,7 +10,8 @@
     "start": "node dist/index.js",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "test": "jest --testPathIgnorePatterns \"/tests/system/\""
+    "test": "jest --testPathIgnorePatterns \"/tests/system/\"",
+    "test:ai": "node test-ai-service.cjs"
   },
   "imports": {
     "#services/*": "./dist/services/*.js",
@@ -31,6 +31,7 @@
     "@firebase/ai": "^2.6.0",
     "@google-cloud/speech": "^7.2.1",
     "@google-cloud/vertexai": "^1.10.0",
+    "@google/generative-ai": "^0.24.1",
     "@types/busboy": "^1.5.4",
     "busboy": "^1.6.0",
     "cors": "^2.8.5",
