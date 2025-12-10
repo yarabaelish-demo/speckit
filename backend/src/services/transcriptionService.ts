@@ -1,13 +1,25 @@
-import { VertexAI, GenerativeModel } from '@google-cloud/vertexai';
+import { getAI, getGenerativeModel } from '@firebase/ai';
+import { initializeApp } from 'firebase/app';
 import { storage } from '#config/firebaseAdmin';
+import dotenv from 'dotenv';
 
-// Initialize Vertex AI (Server-side SDK)
-const projectId = 'yara-speckit';
-const location = 'us-central1';
-const modelName = 'gemini-1.5-flash';
+dotenv.config();
 
-const vertex_ai = new VertexAI({ project: projectId, location: location });
-const model: GenerativeModel = vertex_ai.getGenerativeModel({ model: modelName });
+// Initialize Firebase AI
+const firebaseConfig = {
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID
+};
+
+const app = initializeApp(firebaseConfig);
+const ai = getAI(app);
+const model = getGenerativeModel(ai, {
+    model: 'gemini-1.5-flash'
+});
 
 export const transcribeAudio = async (gcsUri: string): Promise<string> => {
   console.log(`Transcribing audio from: ${gcsUri}`);
@@ -64,7 +76,7 @@ export const transcribeAudio = async (gcsUri: string): Promise<string> => {
     console.log('Transcription complete.');
     return responseText || "No text in response.";
   } catch (error) {
-    console.error('Error in transcribeAudio (Vertex AI):', error);
+    console.error('Error in transcribeAudio (Firebase AI):', error);
     throw error;
   }
 };

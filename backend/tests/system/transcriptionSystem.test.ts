@@ -49,7 +49,7 @@ describe('Transcription System Test (Real Services)', () => {
     console.log('-----------------------------------------------\n');
   });
 
-  it('should upload audio to REAL GCS and transcribe it using Firebase/Vertex AI', async () => {
+  it('should upload audio to REAL GCS and transcribe it using Firebase AI', async () => {
     // 1. Check if file exists
     if (!fs.existsSync(AUDIO_FILE_PATH)) {
         throw new Error(`Test file not found at ${AUDIO_FILE_PATH}. Please ensure it exists.`);

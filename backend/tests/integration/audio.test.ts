@@ -1,24 +1,101 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { db, storage, auth } from '#config/firebaseAdmin';
+// Mock environment variables
+process.env.FIREBASE_API_KEY = 'test-api-key';
+process.env.FIREBASE_AUTH_DOMAIN = 'test-domain';
+process.env.FIREBASE_PROJECT_ID = 'test-project';
+process.env.FIREBASE_STORAGE_BUCKET = 'test-bucket';
+process.env.FIREBASE_MESSAGING_SENDER_ID = 'test-sender-id';
+process.env.FIREBASE_APP_ID = 'test-app-id';
 
-// ESM Mocking
-jest.unstable_mockModule('#services/transcriptionService', () => ({
+// Mock Firebase Admin SDK
+jest.mock('firebase-admin', () => ({
+  __esModule: true,
+  default: {
+    initializeApp: jest.fn(),
+    credential: {
+      cert: jest.fn(),
+      applicationDefault: jest.fn()
+    },
+    firestore: jest.fn(() => ({
+      collection: jest.fn(() => ({
+        add: jest.fn(() => ({ id: 'mock-doc-id' })),
+        get: jest.fn(() => ({ empty: true, forEach: jest.fn() })),
+        doc: jest.fn(() => ({
+          set: jest.fn(),
+          get: jest.fn(() => ({ exists: true, data: () => ({ title: 'My Test Upload', transcription: 'mock transcription', aiResponse: 'mock ai response' }), id: 'mock-doc-id' }))
+        }))
+      })),
+      doc: jest.fn(() => ({
+        set: jest.fn(),
+        get: jest.fn(() => ({ exists: true, data: () => ({ userId: 'test-user-id-123', title: 'My Test Upload', transcription: 'mock transcription', aiResponse: 'mock ai response', audioUrl: 'http://test-url' }), id: 'mock-doc-id' }))
+      })),
+      batch: jest.fn(() => ({
+        delete: jest.fn(),
+        commit: jest.fn()
+      })),
+      listCollections: jest.fn(() => [] as any[])
+    })),
+    storage: jest.fn(() => ({
+      bucket: jest.fn(() => ({
+        file: jest.fn(() => ({
+          save: jest.fn(),
+          getSignedUrl: jest.fn(() => ['http://test-url'])
+        })),
+        getFiles: jest.fn(() => [[{ name: 'test-file' }] as any[]]),
+        deleteFiles: jest.fn()
+      }))
+    })),
+    auth: jest.fn(() => ({
+      listUsers: jest.fn(() => ({ users: [] as any[] })),
+      deleteUsers: jest.fn(),
+      verifyIdToken: jest.fn()
+    }))
+  }
+}));
+
+jest.mock('firebase-admin/app', () => ({
+  applicationDefault: jest.fn()
+}));
+
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'mock-uuid')
+}));
+
+// Mock Firebase AI modules
+jest.mock('@firebase/ai', () => ({
+  getAI: jest.fn(),
+  getGenerativeModel: jest.fn(() => ({
+    generateContent: jest.fn().mockResolvedValue({
+      response: {
+        candidates: [{
+          content: {
+            parts: [{
+              text: 'mock transcription'
+            }]
+          }
+        }]
+      }
+    })
+  }))
+}));
+
+jest.mock('firebase/app', () => ({
+  initializeApp: jest.fn()
+}));
+
+// Mock the AI services
+jest.mock('#services/transcriptionService', () => ({
   transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
 }));
-jest.unstable_mockModule('#services/aiTherapistService', () => ({
+
+jest.mock('#services/aiTherapistService', () => ({
   getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
 }));
 
-// Dynamic imports for modules under test are required after unstable_mockModule
-const { uploadAudio, getAudioEntry } = await import('#services/audioService');
+const { uploadAudio, getAudioEntry } = require('#services/audioService');
+const { db, storage, auth } = require('#config/firebaseAdmin');
+const fs = require('node:fs');
+const path = require('node:path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// --- Test Suite ---
 describe('Audio Service Integration with Emulators', () => {
   beforeEach(async () => {
     await clearFirestore();
@@ -27,7 +104,6 @@ describe('Audio Service Integration with Emulators', () => {
   }, 15000);
 
   it('should upload an audio file and then retrieve the created entry', async () => {
-
     // 1. Setup test data
     const filePath = path.join(__dirname, 'test-audio.mp3');
     if (!fs.existsSync(filePath)) {
@@ -78,7 +154,7 @@ const clearFirestore = async () => {
             continue;
         }
         const batch = db.batch();
-        querySnapshot.forEach(doc => {
+        querySnapshot.forEach((doc: any) => {
             batch.delete(doc.ref);
         });
         await batch.commit();
