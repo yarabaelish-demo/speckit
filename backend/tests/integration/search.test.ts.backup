@@ -1,135 +1,26 @@
-// Mock environment variables
-process.env.FIREBASE_API_KEY = 'test-api-key';
-process.env.FIREBASE_AUTH_DOMAIN = 'test-domain';
-process.env.FIREBASE_PROJECT_ID = 'test-project';
-process.env.FIREBASE_STORAGE_BUCKET = 'test-bucket';
-process.env.FIREBASE_MESSAGING_SENDER_ID = 'test-sender-id';
-process.env.FIREBASE_APP_ID = 'test-app-id';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import request from 'supertest';
+import express from 'express';
+import { db, storage, auth } from '#config/firebaseAdmin';
 
-// Mock Firebase Admin SDK
-jest.mock('firebase-admin', () => ({
-  __esModule: true,
-  default: {
-    initializeApp: jest.fn(),
-    credential: {
-      cert: jest.fn(),
-      applicationDefault: jest.fn()
-    },
-    firestore: jest.fn(() => ({
-      collection: jest.fn(() => ({
-        add: jest.fn(() => ({ id: 'mock-doc-id' })),
-        get: jest.fn(() => ({ 
-          empty: false, 
-          forEach: jest.fn(),
-          docs: [
-            { data: () => ({ transcription: 'nature walk and trees' }) },
-            { data: () => ({ transcription: 'nature hike in the mountains' }) }
-          ]
-        })),
-        where: jest.fn((field, operator, value) => ({
-          where: jest.fn(() => ({
-            get: jest.fn(() => {
-              // Mock search logic - return results that start with the search term
-              if (value === 'nature') {
-                return {
-                  docs: [
-                    { data: () => ({ transcription: 'nature walk and trees' }) },
-                    { data: () => ({ transcription: 'nature hike in the mountains' }) }
-                  ]
-                };
-              } else if (value === 'nomatch') {
-                return { docs: [] };
-              } else {
-                return { docs: [] };
-              }
-            })
-          }))
-        })),
-        doc: jest.fn(() => ({
-          set: jest.fn(),
-          get: jest.fn()
-        }))
-      })),
-      doc: jest.fn(() => ({
-        set: jest.fn(),
-        get: jest.fn()
-      })),
-      batch: jest.fn(() => ({
-        delete: jest.fn(),
-        commit: jest.fn()
-      })),
-      listCollections: jest.fn(() => [] as any[])
-    })),
-    storage: jest.fn(() => ({
-      bucket: jest.fn(() => ({
-        file: jest.fn(() => ({
-          save: jest.fn(),
-          getSignedUrl: jest.fn(() => ['http://test-url'])
-        })),
-        getFiles: jest.fn(() => [[] as any[]]),
-        deleteFiles: jest.fn()
-      }))
-    })),
-    auth: jest.fn(() => ({
-      listUsers: jest.fn(() => ({ users: [] as any[] })),
-      deleteUsers: jest.fn(),
-      verifyIdToken: jest.fn()
-    }))
-  }
-}));
-
-jest.mock('firebase-admin/app', () => ({
-  applicationDefault: jest.fn()
-}));
-
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'mock-uuid')
-}));
-
-// Mock Firebase AI modules
-jest.mock('@firebase/ai', () => ({
-  getAI: jest.fn(),
-  getGenerativeModel: jest.fn(() => ({
-    generateContent: jest.fn().mockResolvedValue({
-      response: {
-        candidates: [{
-          content: {
-            parts: [{
-              text: 'mock transcription'
-            }]
-          }
-        }]
-      }
-    })
-  }))
-}));
-
-jest.mock('firebase/app', () => ({
-  initializeApp: jest.fn()
-}));
-
-// Mock the AI services
+// Mock the AI services before importing
 jest.mock('#services/transcriptionService', () => ({
   transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
 }));
-
 jest.mock('#services/aiTherapistService', () => ({
   getAIResponse: jest.fn(() => Promise.resolve('mock ai response')),
 }));
 
-const request = require('supertest');
-const express = require('express');
-const firebaseAdmin = require('#config/firebaseAdmin');
-const { router: audioApiRouter } = require('#api/audio');
-
-// Extract db and auth from the mocked Firebase Admin
-const { db, auth } = firebaseAdmin;
+// Import after mocking
+import { router as audioApiRouter } from '#api/audio';
+import { uploadAudio } from '#services/audioService';
 
 // Create a test Express app
 const app = express();
 app.use(express.json());
 app.use('/audio', audioApiRouter);
 
+// --- Test Suite ---
 describe('Audio API Search Endpoint Integration', () => {
     const SEARCH_USER_ID = 'search-test-user-id';
 
@@ -206,6 +97,11 @@ const clearFirestore = async () => {
         
         const batch = db.batch();
         for (const doc of querySnapshot.docs) {
+            // Recursively delete subcollections if necessary, 
+            // but for this test we mostly care about the root collections or user collections
+            // Deleting the user document itself doesn't delete subcollections in Firestore, 
+            // but in the test environment we might need to delete `users/{uid}/audioEntries` specifically.
+            // For simplicity in this test context:
              batch.delete(doc.ref);
         }
         await batch.commit();
@@ -216,7 +112,7 @@ const clearFirestore = async () => {
     const searchUserEntries = await db.collection(`users/search-test-user-id/audioEntries`).get();
     if (!searchUserEntries.empty) {
         const batch = db.batch();
-        searchUserEntries.forEach((doc: any) => batch.delete(doc.ref));
+        searchUserEntries.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
     }
 };
@@ -230,4 +126,5 @@ const clearAuth = async () => {
     } catch (error) {
         console.error("Error clearing auth emulator", error)
     }
-}
+};
+

@@ -11,6 +11,6 @@
     "start": "npm start --workspace=backend"
   },
   "engines": {
-    "node": "18"
+    "node": "22"
   }
 }

@@ -175,7 +175,7 @@ router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
     }
 
     try {
-        // Transform history for Vertex AI if needed
+        // Transform history for Firebase AI if needed
         // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
         const formattedHistory = history.map((h: any) => ({
             role: h.role,

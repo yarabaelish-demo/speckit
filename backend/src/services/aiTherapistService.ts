@@ -1,16 +1,23 @@
-import { VertexAI, GenerativeModel } from '@google-cloud/vertexai';
+import { getAI, getGenerativeModel } from '@firebase/ai';
+import { initializeApp } from 'firebase/app';
+import dotenv from 'dotenv';
 
-const projectId = 'yara-speckit';
-const location = 'us-central1';
-const modelName = 'gemini-2.5-pro';
+dotenv.config();
 
-const vertex_ai = new VertexAI({ project: projectId, location: location });
-const model: GenerativeModel = vertex_ai.getGenerativeModel({
-    model: modelName,
-    systemInstruction: {
-        role: 'system',
-        parts: [{ text: "You are a compassionate, thoughtful, and non-judgmental AI therapist. Your goal is to help the user process their thoughts and feelings based on their audio journal entries. Respond with empathy and insight." }]
-    }
+const firebaseConfig = {
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID
+};
+
+const app = initializeApp(firebaseConfig);
+const ai = getAI(app);
+const model = getGenerativeModel(ai, {
+    model: 'gemini-2.5-pro',
+    systemInstruction: "You are a compassionate, thoughtful, and non-judgmental AI therapist. Your goal is to help the user process their thoughts and feelings based on their audio journal entries. Respond with empathy and insight."
 });
 
 export const getAIResponse = async (transcription: string): Promise<string> => {
@@ -30,8 +37,14 @@ export const getAIResponse = async (transcription: string): Promise<string> => {
 export const chatWithTherapist = async (history: { role: string, parts: { text: string }[] }[], message: string): Promise<string> => {
     console.log(`Chatting with therapist. History length: ${history.length}`);
     try {
+        // Convert history to Firebase AI format
+        const formattedHistory = history.map(item => ({
+            role: item.role as "user" | "model" | "system" | "function",
+            parts: item.parts
+        }));
+
         const chat = model.startChat({
-            history: history,
+            history: formattedHistory,
         });
 
         const result = await chat.sendMessage(message);
