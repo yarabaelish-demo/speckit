@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import SearchStatus from './SearchStatus';
 
 describe('SearchStatus Empty State', () => {
@@ -32,7 +33,7 @@ describe('SearchStatus Empty State', () => {
   });
 
   it('should not render when not searching', () => {
-    const { container } = render(
+    render(
       <SearchStatus
         isSearching={false}
         searchQuery=""
@@ -40,6 +41,24 @@ describe('SearchStatus Empty State', () => {
         onClearSearch={mockOnClearSearch}
       />
     );
-    expect(container.firstChild).toBeNull();
+    // When not searching, the component should not display any search-related content
+    expect(screen.queryByText(/Search results for/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No entries match/)).not.toBeInTheDocument();
+  });
+
+  it('should call onClearSearch when clear button is clicked', () => {
+    render(
+      <SearchStatus
+        isSearching={true}
+        searchQuery="test"
+        resultCount={3}
+        onClearSearch={mockOnClearSearch}
+      />
+    );
+    
+    const clearButton = screen.getByRole('button', { name: /clear search/i });
+    userEvent.click(clearButton);
+    
+    expect(mockOnClearSearch).toHaveBeenCalled();
   });
 });

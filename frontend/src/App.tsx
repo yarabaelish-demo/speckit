@@ -13,6 +13,10 @@ function App() {
     setSearchQuery(query);
   };
 
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
   return (
     <Router>
       <div className="App">
@@ -20,9 +24,9 @@ function App() {
         <main>
           <Routes>
             <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard searchQuery={searchQuery} />} />
+            <Route path="/dashboard" element={<Dashboard searchQuery={searchQuery} onClearSearch={handleClearSearch} />} />
             <Route path="/upload" element={<Upload />} />
-            <Route path="/" element={<Dashboard searchQuery={searchQuery} />} />
+            <Route path="/" element={<Dashboard searchQuery={searchQuery} onClearSearch={handleClearSearch} />} />
           </Routes>
         </main>
       </div>

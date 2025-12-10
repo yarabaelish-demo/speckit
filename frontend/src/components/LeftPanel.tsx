@@ -6,7 +6,7 @@ import { AudioEntry } from '../models/audioEntry';
 interface LeftPanelProps {
   audioEntries: AudioEntry[];
   selectedDate: Date | Date[];
-  onDateSelect: (date: Date | Date[]) => void;
+  onDateSelect: (date: Date | Date[] | null) => void;
 }
 
 const LeftPanel: React.FC<LeftPanelProps> = ({ 
@@ -30,12 +30,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   };
 
   return (
-    <div style={{ 
-      flex: '0 0 30%', 
-      minWidth: '300px',
-      display: 'flex',
-      justifyContent: 'center'
-    }}>
+    <div className="left-panel">
       <Calendar
         onChange={onDateSelect as any}
         value={selectedDate as any}
