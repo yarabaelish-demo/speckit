@@ -60,28 +60,6 @@ jest.mock('uuid', () => ({
   v4: jest.fn(() => 'mock-uuid')
 }));
 
-// Mock Firebase AI modules
-jest.mock('@firebase/ai', () => ({
-  getAI: jest.fn(),
-  getGenerativeModel: jest.fn(() => ({
-    generateContent: jest.fn().mockResolvedValue({
-      response: {
-        candidates: [{
-          content: {
-            parts: [{
-              text: 'mock transcription'
-            }]
-          }
-        }]
-      }
-    })
-  }))
-}));
-
-jest.mock('firebase/app', () => ({
-  initializeApp: jest.fn()
-}));
-
 // Mock the AI services
 jest.mock('#services/transcriptionService', () => ({
   transcribeAudio: jest.fn(() => Promise.resolve('mock transcription')),
