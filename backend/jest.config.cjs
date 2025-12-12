@@ -1,7 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/tests'],
+  roots: ['<rootDir>/tests', '<rootDir>/src'],
   testMatch: ['**/*.test.ts'],
   moduleNameMapper: {
     '^#services/(.*)$': '<rootDir>/src/services/$1',
@@ -9,15 +9,18 @@ module.exports = {
     '^#config/(.*)$': '<rootDir>/src/config/$1',
     '^#api/(.*)$': '<rootDir>/src/api/$1',
     '^#middleware/(.*)$': '<rootDir>/src/middleware/$1',
+    '^uuid$': require.resolve('uuid'),
   },
   setupFiles: ['<rootDir>/tests/setupEnv.js'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', {
+    '^.+\\.(ts|js)$': ['ts-jest', {
       tsconfig: {
         module: 'commonjs',
+        moduleResolution: 'node',
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
-        isolatedModules: false
+        isolatedModules: false,
+        allowJs: true
       }
     }],
   },

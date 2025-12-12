@@ -8,8 +8,10 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
+import NodeCache from 'node-cache';
 
 const router = Router();
+const cache = new NodeCache({ stdTTL: 60 }); // 60 seconds TTL
 
 // Middleware to verify Firebase ID token
 const verifyAuth = async (req: any, res: any, next: any) => {
@@ -28,8 +30,27 @@ const verifyAuth = async (req: any, res: any, next: any) => {
   }
 };
 
+// Helper to generate cache key
+const getCacheKey = (userId: string, query: string) => `search_${userId}_${query}`;
+
+// Helper to invalidate all search caches for a user
+const invalidateUserCache = (userId: string) => {
+    // node-cache doesn't support wildcard deletion by default efficiently without keeping track of keys.
+    // For simplicity in this specific requirement, we can use cache.keys() to find relevant keys.
+    // In a production redis environment, we might use tags or sets.
+    const keys = cache.keys();
+    const userKeys = keys.filter(key => key.startsWith(`search_${userId}_`));
+    cache.del(userKeys);
+};
+
 router.post('/upload', verifyAuth, (req: any, res: any) => {
     console.log('Upload endpoint hit');
+    
+    // Invalidate cache on upload
+    if (req.user && req.user.uid) {
+        invalidateUserCache(req.user.uid);
+    }
+
     const busboy = Busboy({ headers: req.headers });
     const uploads: { [key: string]: { filepath: string, mimetype: string, filename: string } } = {};
     const fields: { [key: string]: string } = {};
@@ -96,10 +117,14 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
             });
           }
         }
-        res.status(200).json({ message: 'Upload successful, processing audio in the background.' });
+        if (!res.headersSent) {
+            res.status(200).json({ message: 'Upload successful, processing audio in the background.' });
+        }
       } catch (error) {
           console.error('Error during upload finish:', error);
-          res.status(500).json({ error: (error as Error).message });
+          if (!res.headersSent) {
+            res.status(500).json({ error: (error as Error).message });
+          }
       }
     });
   
@@ -113,6 +138,14 @@ router.get('/search', verifyAuth, async (req: any, res: any) => {
       return res.status(400).json({ error: 'Query parameter "q" is required.' });
     }
   
+    const cacheKey = getCacheKey(userId, q as string);
+    const cachedResults = cache.get(cacheKey);
+
+    if (cachedResults) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cachedResults);
+    }
+
     try {
       const snapshot = await db.collection(`users/${userId}/audioEntries`)
         .where('transcription', '>=', q)
@@ -120,6 +153,10 @@ router.get('/search', verifyAuth, async (req: any, res: any) => {
         .get();
   
       const results = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => doc.data());
+      
+      // Update cache
+      cache.set(cacheKey, results);
+
       res.status(200).json(results);
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
@@ -129,6 +166,9 @@ router.get('/search', verifyAuth, async (req: any, res: any) => {
 router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
     const { entryId } = req.params;
     const userId = req.user.uid;
+
+    // Invalidate cache on delete
+    invalidateUserCache(userId);
 
     try {
         const docRef = db.doc(`users/${userId}/audioEntries/${entryId}`);

@@ -7,6 +7,7 @@
 ## Backend
 *   **Runtime Environment:** Node.js
 *   **Web Framework:** Express.js
+*   **Caching:** In-Memory (node-cache)
 
 ## Database
 *   **NoSQL Database:** Firebase Firestore
