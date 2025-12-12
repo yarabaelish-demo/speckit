@@ -10,7 +10,7 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey || 'dummy-key'); // Fallback for tests if needed, though robust checks preferred
 const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash', // Updated to a standard available model, 'gemini-2.5-pro' might not be valid in this SDK yet or typo
+    model: 'gemini-2.5-flash', // Updated to a standard available model, 'gemini-2.5-pro' might not be valid in this SDK yet or typo
     systemInstruction: "You are a compassionate, thoughtful, and non-judgmental AI therapist. Your goal is to help the user process their thoughts and feelings based on their audio journal entries. Respond with empathy and insight."
 });
 
