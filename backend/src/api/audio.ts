@@ -35,21 +35,39 @@ router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
     console.log(`Chat endpoint hit for ${req.params.entryId}`);
     const { entryId } = req.params;
     const { message, history } = req.body;
-    const userId = req.user.uid; // Although we don't strictly need to look up the user doc here if we trust the client history, it's good practice if we wanted to log it.
+    const userId = req.user.uid; // From auth middleware
 
-    if (!message) {
-        return res.status(400).json({ error: 'Message is required.' });
+    // Input validation and sanitization
+    if (!entryId || typeof entryId !== 'string' || entryId.trim().length === 0) {
+        return res.status(400).json({ error: 'Entry ID is required and must be a non-empty string.' });
     }
+    const sanitizedEntryId = entryId.trim();
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ error: 'Message is required and must be a non-empty string.' });
+    }
+    const sanitizedMessage = message.trim();
+
+    if (!Array.isArray(history)) {
+        return res.status(400).json({ error: 'History must be an array.' });
+    }
+    // Basic sanitization/validation for history elements (can be expanded)
+    const sanitizedHistory = history.map((h: any) => ({
+        role: h.role === 'user' || h.role === 'model' ? h.role : 'user', // Default to user or validate
+        parts: Array.isArray(h.parts) && h.parts.every((p: any) => typeof p.text === 'string') ? 
+               h.parts.map((p: any) => ({ text: p.text.trim().substring(0, 1000) })) : 
+               [{ text: '' }]
+    }));
 
     try {
         // Transform history for Firebase AI if needed
         // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
-        const formattedHistory = history.map((h: any) => ({
+        const formattedHistory = sanitizedHistory.map((h: any) => ({
             role: h.role,
-            parts: [{ text: h.text }]
+            parts: [{ text: h.parts[0].text }]
         }));
 
-        const responseText = await chatWithTherapist(formattedHistory, message);
+        const responseText = await chatWithTherapist(formattedHistory, sanitizedMessage);
         res.status(200).json({ response: responseText });
     } catch (error) {
         console.error('Error in chat endpoint:', error);
@@ -101,6 +119,17 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
         const { title, tags } = fields;
         const userId = req.user.uid; // From auth middleware
 
+        // Input validation and sanitization
+        if (!title || typeof title !== 'string' || title.trim().length === 0) {
+            return res.status(400).json({ error: 'Title is required and must be a non-empty string.' });
+        }
+        const sanitizedTitle = title.trim().substring(0, 255); // Trim and limit length
+
+        let sanitizedTags: string[] = [];
+        if (tags && typeof tags === 'string') {
+            sanitizedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+        }
+
         for (const name in uploads) {
           const uploadData = uploads[name];
           if (uploadData) {
@@ -127,9 +156,9 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
             await userAudioCollection.doc(entryId).set({
               entryId,
               userId,
-              title: title || 'Untitled',
+              title: sanitizedTitle,
               audioUrl: url,
-              tags: tags ? tags.split(',') : [],
+              tags: sanitizedTags,
               transcription: 'Processing...',
               aiResponse: 'Processing...',
               createdAt: new Date(),
@@ -160,11 +189,14 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
 router.get('/search', verifyAuth, async (req: any, res: any) => {
     const { q } = req.query;
     const userId = req.user.uid;
-    if (!q) {
-      return res.status(400).json({ error: 'Query parameter "q" is required.' });
+
+    // Input validation and sanitization
+    if (!q || typeof q !== 'string' || q.trim().length === 0) {
+      return res.status(400).json({ error: 'Query parameter "q" is required and must be a non-empty string.' });
     }
-  
-    const cacheKey = getCacheKey(userId, q as string);
+    const sanitizedQuery = q.trim().substring(0, 500); // Trim and limit length
+
+    const cacheKey = getCacheKey(userId, sanitizedQuery as string);
     const cachedResults = cache.get(cacheKey);
 
     if (cachedResults) {
@@ -174,8 +206,8 @@ router.get('/search', verifyAuth, async (req: any, res: any) => {
 
     try {
       const snapshot = await db.collection(`users/${userId}/audioEntries`)
-        .where('transcription', '>=', q)
-        .where('transcription', '<=', q + '\uf8ff')
+        .where('transcription', '>=', sanitizedQuery)
+        .where('transcription', '<=', sanitizedQuery + '\uf8ff')
         .get();
   
       const results = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => doc.data());
@@ -193,11 +225,17 @@ router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
     const { entryId } = req.params;
     const userId = req.user.uid;
 
+    // Input validation
+    if (!entryId || typeof entryId !== 'string' || entryId.trim().length === 0) {
+        return res.status(400).json({ error: 'Entry ID is required and must be a non-empty string.' });
+    }
+    const sanitizedEntryId = entryId.trim();
+
     // Invalidate cache on delete
     invalidateUserCache(userId);
 
     try {
-        const docRef = db.doc(`users/${userId}/audioEntries/${entryId}`);
+        const docRef = db.doc(`users/${userId}/audioEntries/${sanitizedEntryId}`);
         const docSnap = await docRef.get();
 
         if (!docSnap.exists) {

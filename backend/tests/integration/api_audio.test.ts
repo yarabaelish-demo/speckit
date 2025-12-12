@@ -150,49 +150,40 @@ describe('Audio API Endpoints', () => {
     });
 
     it('POST /audio/upload should process file upload', async () => {
-        // Since we mocked Busboy, we need to manually trigger the events it would emit
-        // This is tricky with supertest + express + mocked busboy. 
-        // We'll rely on the fact that `req.pipe(busboy)` is called.
-        // But since we can't easily grab the busboy instance created inside the route, 
-        // we'll simulate the "happy path" by mocking the Busboy constructor to return an object 
-        // that immediately emits events when `pipe` or listeners are attached.
-        
-        // Actually, it's easier to verify that the endpoint returns 200 if we can get Busboy to finish.
-        // We can use a special mock for this test that auto-emits 'finish' on instantiation/tick.
-        
-                        const busboyMock = require('busboy');
-                        busboyMock.mockImplementation(() => {
-                            const listeners: Record<string, Function> = {};
-                            return {
-                                on: (event: string, cb: any) => {
-                                    listeners[event] = cb;
-                                    // Trigger flow when 'finish' listener is attached (assuming it's the last one)
-                                    // OR trigger explicitly.
-                                    // Let's trigger the sequence when 'finish' is attached, 
-                                    // effectively simulating "parsing started and completed".
-                                    if (event === 'finish') {
-                                        setTimeout(() => {
-                                            // 1. Emit file
-                                            if (listeners['file']) {
-                                                listeners['file']('audio', { 
-                                                    pipe: (stream: any) => {
-                                                        stream.emit('finish');
-                                                        return stream;
-                                                    }
-                                                }, { filename: 'test.mp3', mimeType: 'audio/mpeg', encoding: '7bit' });
-                                            }
-                                            // 2. Emit finish
-                                            cb();
-                                        }, 0);
+        const busboyMock = require('busboy');
+        busboyMock.mockImplementation(() => {
+            const listeners: Record<string, Function> = {};
+            return {
+                on: (event: string, cb: any) => {
+                    listeners[event] = cb;
+                    if (event === 'finish') {
+                        setTimeout(() => {
+                            // Emit title field
+                            if (listeners['field']) {
+                                listeners['field']('title', 'Test Title');
+                            }
+                            // 1. Emit file
+                            if (listeners['file']) {
+                                listeners['file']('audio', { 
+                                    pipe: (stream: any) => {
+                                        stream.emit('finish');
+                                        return stream;
                                     }
-                                },
-                                                write: jest.fn(),
-                                                end: jest.fn(),
-                                                emit: jest.fn(),
-                                                removeListener: jest.fn(),
-                                                once: jest.fn(),
-                                            };
-                                        });        const res = await request(app)
+                                }, { filename: 'test.mp3', mimeType: 'audio/mpeg', encoding: '7bit' });
+                            }
+                            cb(); // Trigger finish
+                        }, 0);
+                    }
+                },
+                write: jest.fn(),
+                end: jest.fn(),
+                emit: jest.fn(),
+                removeListener: jest.fn(),
+                once: jest.fn(),
+            };
+        });        
+
+        const res = await request(app)
             .post('/audio/upload')
             .set('Authorization', 'Bearer mock-token')
             .set('Content-Type', 'multipart/form-data; boundary=boundary')
@@ -201,11 +192,107 @@ describe('Audio API Endpoints', () => {
         expect(res.statusCode).toBe(200);
         expect(res.body.message).toContain('Upload successful');
         
-        // Verify interactions (wait a bit for async operations in the route)
         await new Promise(resolve => setTimeout(resolve, 100));
         
         expect(mockStorageUpload).toHaveBeenCalled();
-        expect(mockSet).toHaveBeenCalled(); // Firestore set
+        expect(mockSet).toHaveBeenCalled();
+    });
+
+    it('POST /audio/upload should return 400 if title is missing', async () => {
+        const busboyMock = require('busboy');
+        busboyMock.mockImplementation(() => {
+            const listeners: Record<string, Function> = {};
+            return {
+                on: (event: string, cb: any) => {
+                    listeners[event] = cb;
+                    if (event === 'finish') {
+                        setTimeout(() => {
+                            if (listeners['file']) {
+                                listeners['file']('audio', { 
+                                    pipe: (stream: any) => {
+                                        stream.emit('finish');
+                                        return stream;
+                                    }
+                                }, { filename: 'test.mp3', mimeType: 'audio/mpeg', encoding: '7bit' });
+                            }
+                            cb(); // Trigger finish to run validation logic
+                        }, 0);
+                    }
+                },
+                write: jest.fn(),
+                end: jest.fn(),
+                emit: jest.fn(),
+                removeListener: jest.fn(),
+                once: jest.fn(),
+            };
+        });        
+
+        const res = await request(app)
+            .post('/audio/upload')
+            .set('Authorization', 'Bearer mock-token')
+            .set('Content-Type', 'multipart/form-data; boundary=boundary')
+            .send('--boundary\r\nContent-Disposition: form-data; name="tags"\r\n\r\ntag1,tag2\r\n--boundary--');
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Title is required');
+    });
+
+    it('POST /audio/upload should return 400 if title is empty', async () => {
+        const busboyMock = require('busboy');
+        busboyMock.mockImplementation(() => {
+            const listeners: Record<string, Function> = {};
+            return {
+                on: (event: string, cb: any) => {
+                    listeners[event] = cb;
+                    if (event === 'finish') {
+                        setTimeout(() => {
+                            if (listeners['file']) {
+                                listeners['file']('audio', { 
+                                    pipe: (stream: any) => {
+                                        stream.emit('finish');
+                                        return stream;
+                                    }
+                                }, { filename: 'test.mp3', mimeType: 'audio/mpeg', encoding: '7bit' });
+                            }
+                            cb(); // Trigger finish to run validation logic
+                        }, 0);
+                    }
+                },
+                write: jest.fn(),
+                end: jest.fn(),
+                emit: jest.fn(),
+                removeListener: jest.fn(),
+                once: jest.fn(),
+            };
+        });        
+
+        const res = await request(app)
+            .post('/audio/upload')
+            .set('Authorization', 'Bearer mock-token')
+            .set('Content-Type', 'multipart/form-data; boundary=boundary')
+            .send('--boundary\r\nContent-Disposition: form-data; name="title"\r\n\r\n \r\n--boundary--');
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Title is required');
+    });
+
+    it('GET /audio/search should return 400 if query parameter "q" is missing', async () => {
+        const res = await request(app)
+            .get('/audio/search')
+            .set('Authorization', 'Bearer mock-token');
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Query parameter "q" is required');
+    });
+
+    it('GET /audio/search should return 400 if query parameter "q" is empty', async () => {
+        const res = await request(app)
+            .get('/audio/search')
+            .query({ q: ' ' })
+            .set('Authorization', 'Bearer mock-token');
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Query parameter "q" is required');
     });
 
     it('DELETE /audio/:entryId should delete file and doc', async () => {
@@ -214,8 +301,17 @@ describe('Audio API Endpoints', () => {
             .set('Authorization', 'Bearer mock-token');
 
         expect(res.statusCode).toBe(200);
-        expect(mockDelete).toHaveBeenCalled(); // Doc delete
-        expect(mockStorageDelete).toHaveBeenCalled(); // File delete
+        expect(mockDelete).toHaveBeenCalled();
+        expect(mockStorageDelete).toHaveBeenCalled();
+    });
+
+    it('DELETE /audio/:entryId should return 400 if entryId is missing or empty', async () => {
+        const res = await request(app)
+            .delete('/audio/%20') 
+            .set('Authorization', 'Bearer mock-token');
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Entry ID is required');
     });
 
     it('POST /audio/:entryId/chat should return AI response', async () => {
@@ -229,5 +325,43 @@ describe('Audio API Endpoints', () => {
 
         expect(res.statusCode).toBe(200);
         expect(res.body.response).toBe('Therapist says hello');
+    });
+
+    it('POST /audio/:entryId/chat should return 400 if message is missing', async () => {
+        const res = await request(app)
+            .post('/audio/mock-entry-id/chat')
+            .set('Authorization', 'Bearer mock-token')
+            .send({
+                history: [{ role: 'user', text: 'Hi' }]
+            });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Message is required');
+    });
+
+    it('POST /audio/:entryId/chat should return 400 if message is empty', async () => {
+        const res = await request(app)
+            .post('/audio/mock-entry-id/chat')
+            .set('Authorization', 'Bearer mock-token')
+            .send({
+                message: ' ',
+                history: [{ role: 'user', text: 'Hi' }]
+            });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('Message is required');
+    });
+
+    it('POST /audio/:entryId/chat should return 400 if history is not an array', async () => {
+        const res = await request(app)
+            .post('/audio/mock-entry-id/chat')
+            .set('Authorization', 'Bearer mock-token')
+            .send({
+                message: 'Hello',
+                history: 'not-an-array'
+            });
+
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('History must be an array');
     });
 });
