@@ -1,6 +1,6 @@
 # Plan: Optimizing Backend Performance and Security
 
-## Phase 1: Initial Assessment and Identification
+## Phase 1: Initial Assessment and Identification [checkpoint: 1f213d9]
 
 - [x] Task: Review backend codebase for potential performance bottlenecks. Findings: Identified potential performance bottlenecks in the /search endpoint's Firestore query due to range query on 'transcription' field without explicit indexing and lack of orderBy clause. Also noted multiple Firestore update calls in the /upload background process that could be optimized.
 
