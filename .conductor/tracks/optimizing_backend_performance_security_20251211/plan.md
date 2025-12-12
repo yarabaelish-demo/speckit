@@ -15,7 +15,7 @@
 - [x] Task: Refactor inefficient code sections. (daf1a5b)
 - [x] Task: Conductor - User Manual Verification 'Performance Optimization' (Protocol in workflow.md)
 
-## Phase 3: Security Hardening
+## Phase 3: Security Hardening [checkpoint: 79fe13a]
 
 - [x] Task: Implement input validation and sanitization for all API endpoints. (3004e22)
 - [x] Task: Enhance authentication and authorization checks. (fa74d8d)
