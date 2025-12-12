@@ -111,9 +111,8 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
             
             // Non-blocking background processing
             transcribeAudio(gcsUri).then(async (transcription: string) => {
-                await userAudioCollection.doc(entryId).update({ transcription });
                 const aiResponse = await getAIResponse(transcription);
-                await userAudioCollection.doc(entryId).update({ aiResponse });
+                await userAudioCollection.doc(entryId).update({ transcription, aiResponse });
             });
           }
         }
