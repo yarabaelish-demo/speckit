@@ -1,44 +1,21 @@
 // Mock environment variables
 process.env.FIREBASE_API_KEY = 'test-api-key';
-process.env.FIREBASE_AUTH_DOMAIN = 'test-domain';
-process.env.FIREBASE_PROJECT_ID = 'test-project';
-process.env.FIREBASE_STORAGE_BUCKET = 'test-bucket';
-process.env.FIREBASE_MESSAGING_SENDER_ID = 'test-sender-id';
-process.env.FIREBASE_APP_ID = 'test-app-id';
 
-// Mock Firebase AI modules
-jest.mock('@firebase/ai', () => ({
-  getAI: jest.fn(),
-  getGenerativeModel: jest.fn(() => ({
-    generateContent: jest.fn().mockResolvedValue({
-      response: {
-        candidates: [{
-          content: {
-            parts: [{
-              text: 'mock AI therapist response for your journal entry'
-            }]
-          }
-        }]
-      }
-    }),
-    startChat: jest.fn(() => ({
-      sendMessage: jest.fn().mockResolvedValue({
-        response: {
-          candidates: [{
-            content: {
-              parts: [{
-                text: 'mock AI therapist chat response'
-              }]
-            }
-          }]
-        }
-      })
-    }))
-  }))
+// Mock Google Generative AI
+const mockGenerateContent = jest.fn();
+const mockSendMessage = jest.fn();
+const mockStartChat = jest.fn(() => ({
+    sendMessage: mockSendMessage
+}));
+const mockGetGenerativeModel = jest.fn(() => ({
+    generateContent: mockGenerateContent,
+    startChat: mockStartChat
 }));
 
-jest.mock('firebase/app', () => ({
-  initializeApp: jest.fn(() => ({}))
+jest.mock('@google/generative-ai', () => ({
+  GoogleGenerativeAI: jest.fn(() => ({
+    getGenerativeModel: mockGetGenerativeModel
+  }))
 }));
 
 const { getAIResponse, chatWithTherapist } = require('#services/aiTherapistService');
@@ -46,6 +23,16 @@ const { getAIResponse, chatWithTherapist } = require('#services/aiTherapistServi
 describe('aiTherapistService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGenerateContent.mockResolvedValue({
+        response: {
+            text: () => 'mock AI therapist response for your journal entry'
+        }
+    });
+    mockSendMessage.mockResolvedValue({
+        response: {
+            text: () => 'mock AI therapist chat response'
+        }
+    });
   });
 
   describe('getAIResponse', () => {
@@ -54,23 +41,14 @@ describe('aiTherapistService', () => {
       const response = await getAIResponse(text);
       expect(response).toEqual(expect.any(String));
       expect(response).toContain('mock AI therapist response');
+      expect(mockGenerateContent).toHaveBeenCalled();
     });
 
     it('should handle errors gracefully', async () => {
-      // Mock the Firebase AI to throw an error by re-mocking the module
-      jest.doMock('@firebase/ai', () => ({
-        getAI: jest.fn(),
-        getGenerativeModel: jest.fn(() => ({
-          generateContent: jest.fn().mockRejectedValue(new Error('API Error'))
-        }))
-      }));
-
-      // Re-import the module to get the new mock
-      jest.resetModules();
-      const { getAIResponse: getAIResponseWithError } = require('#services/aiTherapistService');
+      mockGenerateContent.mockRejectedValue(new Error('API Error'));
 
       const text = 'This is a test transcription.';
-      const response = await getAIResponseWithError(text);
+      const response = await getAIResponse(text);
       expect(response).toBe("I'm sorry, I'm having trouble processing your entry right now.");
     });
   });
@@ -85,27 +63,34 @@ describe('aiTherapistService', () => {
       const response = await chatWithTherapist(history, message);
       expect(response).toEqual(expect.any(String));
       expect(response).toContain('mock AI therapist chat response');
+      expect(mockStartChat).toHaveBeenCalled();
+      expect(mockSendMessage).toHaveBeenCalledWith(message);
+    });
+
+    it('should remove leading model message from history', async () => {
+      const history = [
+        { role: 'model', parts: [{ text: 'Greetings' }] },
+        { role: 'user', parts: [{ text: 'Hello' }] }
+      ];
+      const message = 'How are you?';
+      
+      const response = await chatWithTherapist(history, message);
+      expect(response).toEqual(expect.any(String));
+      
+      // Check that startChat was called with the modified history
+      const expectedHistory = [
+          { role: 'user', parts: [{ text: 'Hello' }] }
+      ];
+      expect(mockStartChat).toHaveBeenCalledWith({ history: expectedHistory });
     });
 
     it('should handle chat errors by throwing', async () => {
-      // Mock the Firebase AI to throw an error by re-mocking the module
-      jest.doMock('@firebase/ai', () => ({
-        getAI: jest.fn(),
-        getGenerativeModel: jest.fn(() => ({
-          startChat: jest.fn(() => ({
-            sendMessage: jest.fn().mockRejectedValue(new Error('Chat API Error'))
-          }))
-        }))
-      }));
-
-      // Re-import the module to get the new mock
-      jest.resetModules();
-      const { chatWithTherapist: chatWithTherapistWithError } = require('#services/aiTherapistService');
+      mockSendMessage.mockRejectedValue(new Error('Chat API Error'));
 
       const history = [{ role: 'user', parts: [{ text: 'Hello' }] }];
       const message = 'How are you?';
       
-      await expect(chatWithTherapistWithError(history, message)).rejects.toThrow('Failed to get chat response.');
+      await expect(chatWithTherapist(history, message)).rejects.toThrow('Failed to get chat response.');
     });
   });
 });

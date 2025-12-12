@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { auth } from '../firebaseConfig';
+import { API_BASE_URL } from '../apiConfig';
 
 interface ChatPanelProps {
   entryId: string;
@@ -50,7 +51,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, initialMessage, onClose 
       // So history should be everything BEFORE the current message.
       const history = messages; 
 
-      const response = await fetch(`http://localhost:5000/api/audio/${entryId}/chat`, {
+      const response = await fetch(`${API_BASE_URL}/audio/${entryId}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,7 +64,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, initialMessage, onClose 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
       }
 
       const data = await response.json();
