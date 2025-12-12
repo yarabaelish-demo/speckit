@@ -15,35 +15,39 @@ const router = Router();
 console.log('Audio router loaded');
 const cache = new NodeCache({ stdTTL: 60 }); // 60 seconds TTL
 
-router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
+router.post('/:entryId/chat', verifyAuth, async (req: any, res: any, next: any) => {
     console.log(`Chat endpoint hit for ${req.params.entryId}`);
     const { entryId } = req.params;
     const { message, history } = req.body;
-    const userId = req.user.uid; // From auth middleware
+    const userId = req.user.uid; // Although we don't strictly need to look up the user doc here if we trust the client history, it's good practice if we wanted to log it.
 
-    // Input validation and sanitization
-    if (!entryId || typeof entryId !== 'string' || entryId.trim().length === 0) {
-        return res.status(400).json({ error: 'Entry ID is required and must be a non-empty string.' });
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required.' });
     }
-    const sanitizedEntryId = entryId.trim();
-
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-        return res.status(400).json({ error: 'Message is required and must be a non-empty string.' });
-    }
-    const sanitizedMessage = message.trim();
-
-    if (!Array.isArray(history)) {
-        return res.status(400).json({ error: 'History must be an array.' });
-    }
-    // Basic sanitization/validation for history elements (can be expanded)
-    const sanitizedHistory = history.map((h: any) => ({
-        role: h.role === 'user' || h.role === 'model' ? h.role : 'user', // Default to user or validate
-        parts: Array.isArray(h.parts) && h.parts.every((p: any) => typeof p.text === 'string') ? 
-               h.parts.map((p: any) => ({ text: p.text.trim().substring(0, 1000) })) : 
-               [{ text: '' }]
-    }));
 
     try {
+        // Input validation and sanitization
+        if (!entryId || typeof entryId !== 'string' || entryId.trim().length === 0) {
+            return res.status(400).json({ error: 'Entry ID is required and must be a non-empty string.' });
+        }
+        const sanitizedEntryId = entryId.trim();
+
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Message is required and must be a non-empty string.' });
+        }
+        const sanitizedMessage = message.trim();
+
+        if (!Array.isArray(history)) {
+            return res.status(400).json({ error: 'History must be an array.' });
+        }
+        // Basic sanitization/validation for history elements (can be expanded)
+        const sanitizedHistory = history.map((h: any) => ({
+            role: h.role === 'user' || h.role === 'model' ? h.role : 'user', // Default to user or validate
+            parts: Array.isArray(h.parts) && h.parts.every((p: any) => typeof p.text === 'string') ? 
+                   h.parts.map((p: any) => ({ text: p.text.trim().substring(0, 1000) })) : 
+                   [{ text: '' }]
+        }));
+
         // Transform history for Firebase AI if needed
         // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
         const formattedHistory = sanitizedHistory.map((h: any) => ({
@@ -54,8 +58,7 @@ router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
         const responseText = await chatWithTherapist(formattedHistory, sanitizedMessage);
         res.status(200).json({ response: responseText });
     } catch (error) {
-        console.error('Error in chat endpoint:', error);
-        res.status(500).json({ error: (error as Error).message });
+        next(error);
     }
 });
 
@@ -72,7 +75,7 @@ const invalidateUserCache = (userId: string) => {
     cache.del(userKeys);
 };
 
-router.post('/upload', verifyAuth, (req: any, res: any) => {
+router.post('/upload', verifyAuth, (req: any, res: any, next: any) => {
     console.log('Upload endpoint hit');
     
     // Invalidate cache on upload
@@ -160,9 +163,10 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
             res.status(200).json({ message: 'Upload successful, processing audio in the background.' });
         }
       } catch (error) {
-          console.error('Error during upload finish:', error);
           if (!res.headersSent) {
-            res.status(500).json({ error: (error as Error).message });
+            next(error);
+          } else {
+            console.error('Error after response sent:', error);
           }
       }
     });
@@ -170,7 +174,7 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
     req.pipe(busboy);
   });
 
-router.get('/search', verifyAuth, async (req: any, res: any) => {
+router.get('/search', verifyAuth, async (req: any, res: any, next: any) => {
     const { q } = req.query;
     const userId = req.user.uid;
 
@@ -201,11 +205,11 @@ router.get('/search', verifyAuth, async (req: any, res: any) => {
 
       res.status(200).json(results);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
+router.delete('/:entryId', verifyAuth, async (req: any, res: any, next: any) => {
     const { entryId } = req.params;
     const userId = req.user.uid;
 
@@ -248,8 +252,7 @@ router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
         await docRef.delete();
         res.status(200).json({ message: 'Audio entry deleted successfully.' });
     } catch (error) {
-        console.error('Error deleting audio entry:', error);
-        res.status(500).json({ error: (error as Error).message });
+        next(error);
     }
 });
 
