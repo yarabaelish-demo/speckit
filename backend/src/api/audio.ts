@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { storage, db, auth } from '#config/firebaseAdmin';
+import { verifyAuth } from '#middleware/auth';
 import Busboy from 'busboy';
 import { v4 as uuidv4 } from 'uuid';
 import { transcribeAudio } from '#services/transcriptionService';
@@ -13,23 +14,6 @@ import NodeCache from 'node-cache';
 const router = Router();
 console.log('Audio router loaded');
 const cache = new NodeCache({ stdTTL: 60 }); // 60 seconds TTL
-
-// Middleware to verify Firebase ID token
-const verifyAuth = async (req: any, res: any, next: any) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
-  }
-  const idToken = authHeader.split('Bearer ')[1];
-  try {
-    const decodedToken = await auth.verifyIdToken(idToken);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.error('Error verifying auth token:', error);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-  }
-};
 
 router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
     console.log(`Chat endpoint hit for ${req.params.entryId}`);

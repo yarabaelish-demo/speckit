@@ -18,6 +18,6 @@
 ## Phase 3: Security Hardening
 
 - [x] Task: Implement input validation and sanitization for all API endpoints. (3004e22)
-- [ ] Task: Enhance authentication and authorization checks.
+- [x] Task: Enhance authentication and authorization checks.
 - [ ] Task: Implement secure error handling and logging.
 - [ ] Task: Conductor - User Manual Verification 'Security Hardening' (Protocol in workflow.md)
