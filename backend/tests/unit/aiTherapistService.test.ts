@@ -67,6 +67,23 @@ describe('aiTherapistService', () => {
       expect(mockSendMessage).toHaveBeenCalledWith(message);
     });
 
+    it('should remove leading model message from history', async () => {
+      const history = [
+        { role: 'model', parts: [{ text: 'Greetings' }] },
+        { role: 'user', parts: [{ text: 'Hello' }] }
+      ];
+      const message = 'How are you?';
+      
+      const response = await chatWithTherapist(history, message);
+      expect(response).toEqual(expect.any(String));
+      
+      // Check that startChat was called with the modified history
+      const expectedHistory = [
+          { role: 'user', parts: [{ text: 'Hello' }] }
+      ];
+      expect(mockStartChat).toHaveBeenCalledWith({ history: expectedHistory });
+    });
+
     it('should handle chat errors by throwing', async () => {
       mockSendMessage.mockRejectedValue(new Error('Chat API Error'));
 

@@ -11,6 +11,7 @@ import type { QueryDocumentSnapshot, DocumentData } from 'firebase-admin/firesto
 import NodeCache from 'node-cache';
 
 const router = Router();
+console.log('Audio router loaded');
 const cache = new NodeCache({ stdTTL: 60 }); // 60 seconds TTL
 
 // Middleware to verify Firebase ID token
@@ -29,6 +30,32 @@ const verifyAuth = async (req: any, res: any, next: any) => {
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }
 };
+
+router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
+    console.log(`Chat endpoint hit for ${req.params.entryId}`);
+    const { entryId } = req.params;
+    const { message, history } = req.body;
+    const userId = req.user.uid; // Although we don't strictly need to look up the user doc here if we trust the client history, it's good practice if we wanted to log it.
+
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required.' });
+    }
+
+    try {
+        // Transform history for Firebase AI if needed
+        // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
+        const formattedHistory = history.map((h: any) => ({
+            role: h.role,
+            parts: [{ text: h.text }]
+        }));
+
+        const responseText = await chatWithTherapist(formattedHistory, message);
+        res.status(200).json({ response: responseText });
+    } catch (error) {
+        console.error('Error in chat endpoint:', error);
+        res.status(500).json({ error: (error as Error).message });
+    }
+});
 
 // Helper to generate cache key
 const getCacheKey = (userId: string, query: string) => `search_${userId}_${query}`;
@@ -204,29 +231,9 @@ router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
     }
 });
 
-router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
-    const { entryId } = req.params;
-    const { message, history } = req.body;
-    const userId = req.user.uid; // Although we don't strictly need to look up the user doc here if we trust the client history, it's good practice if we wanted to log it.
-
-    if (!message) {
-        return res.status(400).json({ error: 'Message is required.' });
-    }
-
-    try {
-        // Transform history for Firebase AI if needed
-        // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
-        const formattedHistory = history.map((h: any) => ({
-            role: h.role,
-            parts: [{ text: h.text }]
-        }));
-
-        const responseText = await chatWithTherapist(formattedHistory, message);
-        res.status(200).json({ response: responseText });
-    } catch (error) {
-        console.error('Error in chat endpoint:', error);
-        res.status(500).json({ error: (error as Error).message });
-    }
+router.use((req, res, next) => {
+    console.log(`Audio router catch-all: ${req.method} ${req.url}`);
+    next();
 });
 
 export { router };

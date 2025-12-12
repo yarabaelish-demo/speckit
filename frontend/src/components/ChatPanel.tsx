@@ -64,7 +64,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ entryId, initialMessage, onClose 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send message');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
       }
 
       const data = await response.json();

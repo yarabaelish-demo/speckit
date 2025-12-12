@@ -34,10 +34,16 @@ export const chatWithTherapist = async (history: { role: string, parts: { text: 
         // Convert history to Google GenAI format
         // Expected: { role: 'user' | 'model', parts: { text: string }[] }[] or similar
         // The SDK expects `Content` objects.
-        const formattedHistory = history.map(item => ({
+        let formattedHistory = history.map(item => ({
             role: item.role,
             parts: item.parts
         }));
+
+        // Validate history starts with user
+        if (formattedHistory.length > 0 && formattedHistory[0].role === 'model') {
+            console.log("Removing initial model message from history to satisfy API requirements.");
+            formattedHistory.shift();
+        }
 
         const chat = model.startChat({
             history: formattedHistory,
