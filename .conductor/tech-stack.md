@@ -13,7 +13,7 @@
 *   **NoSQL Database:** Firebase Firestore
 
 ## AI Services
-*   **Generative AI:** Firebase AI Logic (GenAI)
+*   **Generative AI:** Google Generative AI (Node.js SDK)
 
 ## Authentication
 *   **Service:** Firebase Auth
