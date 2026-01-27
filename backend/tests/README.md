@@ -1,18 +1,30 @@
-# Integration Tests with Firebase Emulators
+# Backend Testing Guide
 
-To run the integration tests, you need to have the Firebase Emulators running.
+This guide covers all types of tests in the backend: unit tests, integration tests, and system tests.
 
-## 1. Start Firebase Emulators
+## Prerequisites
 
-Navigate to your project root directory and run the following command to start the Firebase Emulators:
+### For Unit and Integration Tests
+
+Navigate to your project root directory and start the Firebase Emulators:
 
 ```bash
 firebase emulators:start --only firestore,storage,auth --project demo-project
 ```
 
-Ensure the emulators are running on their default ports (Firestore: 8080, Storage: 9199, Auth: 9099). The test environment uses these default ports, which are configured via `backend/tests/setupEnv.js` for the test run.
+Ensure the emulators are running on their default ports (Firestore: 8080, Storage: 9199, Auth: 9099).
 
-## 3. Test Environment Setup (`setupEnv.js`)
+### For System Tests
+
+Set up the following environment variables:
+- `FIREBASE_API_KEY` - Firebase API key with AI Logic access (in `.env` file)
+- `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account key for GCS access
+
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS=../serviceAccountKey.json
+```
+
+## Test Environment Setup (`setupEnv.js`)
 
 To ensure integration tests connect to the Firebase Emulators, the `backend/tests/setupEnv.js` file sets the necessary environment variables:
 
@@ -24,7 +36,9 @@ To ensure integration tests connect to the Firebase Emulators, the `backend/test
 
 This file is automatically loaded by Jest via `jest.config.cjs` before tests execute, directing the Firebase Admin SDK to communicate with the local emulators.
 
-## 2. Run the Unit and Integration Tests
+## Running Tests
+
+### 1. Unit and Integration Tests
 
 Once the emulators are running, navigate to the `backend` directory and run the tests using npm:
 
@@ -35,13 +49,56 @@ NODE_ENV=test npm test
 
 The `NODE_ENV=test` environment variable is crucial as it tells the application to connect to the Firebase emulators instead of the production Firebase project.
 
-## 3. Run the System Test
+### 2. System Tests
 
-Place GEMINI_API_KEY with Firebase AI Logic access in `.env`. You can restrict this key to only Firebase AI Logic. 
+The system test verifies Firebase AI Logic integration with real services.
+
+Set up environment variables:
+- `FIREBASE_API_KEY` - Firebase API key with AI Logic access
+- `GOOGLE_APPLICATION_CREDENTIALS` - Path to service account key for GCS access
 
 ```bash
 cd backend
-NODE_ENV=system NODE_OPTIONS='--experimental-vm-modules' npx jest tests/system/transcriptionSystem.test.ts
+export GOOGLE_APPLICATION_CREDENTIALS=../serviceAccountKey.json
+npm run test:ai
 ```
 
-To make this warning message - "`GOOGLE_APPLICATION_CREDENTIALS` not set. System test may fail." - go away, also set `GOOGLE_APPLICATION_CREDENTIALS`. This key is supposed to have storage access. 
+This test will show whether Firebase AI Logic or Gemini API is being used and verify the transcription service works correctly.
+
+## Available Scripts
+
+- `npm test` - Run unit and integration tests (excludes system tests)
+- `npm run test:ai` - Run system tests for Firebase AI Logic integration
+- `npm run build` - Compile TypeScript to JavaScript (required before running system tests)
+- `npm run dev` - Start development server with hot reload
+
+## Test Coverage
+
+### Unit Tests (`tests/unit/`)
+- **aiTherapistService.test.ts**: Tests AI response generation with mocked services
+- Tests individual service functions in isolation
+
+### Integration Tests (`tests/integration/`)
+- **audio.test.ts**: Tests audio upload and retrieval workflows with Firebase emulators
+- **search.test.ts**: Tests search functionality with mocked data
+- Tests component interactions using Firebase emulators
+
+### System Tests (`tests/system/`)
+- **test-ai-service.cjs**: Tests real Firebase AI Logic/Gemini API integration
+- Tests end-to-end functionality with real external services
+- Verifies GCS upload/download and AI transcription
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Emulator Connection Errors**: Ensure Firebase emulators are running before running unit/integration tests
+2. **System Test Failures**: Check that `GOOGLE_APPLICATION_CREDENTIALS` points to a valid service account key
+3. **Firebase AI Errors**: Verify Firebase AI Logic is enabled in your Firebase project, or ensure Gemini API is enabled in Google Cloud Console
+4. **Permission Errors**: Ensure your service account has Storage Admin permissions for GCS operations
+
+### Expected System Test Outcomes
+
+- ✅ **Success**: Firebase AI Logic is enabled and working
+- ⚠️ **Configuration Issue**: Firebase AI Logic not enabled, falls back to Gemini API (may be blocked)
+- ❌ **Failure**: Code issue that needs investigation 
