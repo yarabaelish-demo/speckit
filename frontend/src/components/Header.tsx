@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { auth } from '../firebaseConfig';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import SearchBar from './SearchBar';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  onSearch?: (query: string) => void;
+  searchQuery?: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ onSearch, searchQuery }) => {
   const [user, setUser] = useState<User | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,6 +56,12 @@ const Header: React.FC = () => {
             <li><Link to="/upload">Upload</Link></li>
           </ul>
         </nav>
+        
+        {onSearch && (
+          <div className="header-search">
+            <SearchBar onSearch={onSearch} initialQuery={searchQuery} />
+          </div>
+        )}
         
         <div className="nav-right">
           {user ? (
