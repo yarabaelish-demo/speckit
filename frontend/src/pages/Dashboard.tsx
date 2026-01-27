@@ -3,6 +3,7 @@ import { db, auth } from '../firebaseConfig';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { AudioEntry } from '../models/audioEntry';
+import { API_BASE_URL } from '../apiConfig';
 import ChatPanel from '../components/ChatPanel';
 import LeftPanel from '../components/LeftPanel';
 import RightPanel from '../components/RightPanel';
@@ -67,7 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({ searchQuery = '', onClearSearch }
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch(`http://localhost:5000/api/audio/${entryId}`, {
+      const response = await fetch(`${API_BASE_URL}/audio/${entryId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

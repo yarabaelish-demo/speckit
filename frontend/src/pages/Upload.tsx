@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../firebaseConfig';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { API_BASE_URL } from '../apiConfig';
 
 const Upload: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -130,7 +131,7 @@ const Upload: React.FC = () => {
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch('http://localhost:5000/api/audio/upload', {
+      const response = await fetch(`${API_BASE_URL}/audio/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

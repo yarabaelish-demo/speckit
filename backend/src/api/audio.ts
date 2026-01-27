@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { storage, db, auth } from '#config/firebaseAdmin';
+import { verifyAuth } from '#middleware/auth';
 import Busboy from 'busboy';
 import { v4 as uuidv4 } from 'uuid';
 import { transcribeAudio } from '#services/transcriptionService';
@@ -8,28 +9,80 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { QueryDocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
+import NodeCache from 'node-cache';
 
 const router = Router();
+console.log('Audio router loaded');
+const cache = new NodeCache({ stdTTL: 60 }); // 60 seconds TTL
 
-// Middleware to verify Firebase ID token
-const verifyAuth = async (req: any, res: any, next: any) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
-  }
-  const idToken = authHeader.split('Bearer ')[1];
-  try {
-    const decodedToken = await auth.verifyIdToken(idToken);
-    req.user = decodedToken;
-    next();
-  } catch (error) {
-    console.error('Error verifying auth token:', error);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-  }
+router.post('/:entryId/chat', verifyAuth, async (req: any, res: any, next: any) => {
+    console.log(`Chat endpoint hit for ${req.params.entryId}`);
+    const { entryId } = req.params;
+    const { message, history } = req.body;
+    const userId = req.user.uid; // Although we don't strictly need to look up the user doc here if we trust the client history, it's good practice if we wanted to log it.
+
+    if (!message) {
+        return res.status(400).json({ error: 'Message is required.' });
+    }
+
+    try {
+        // Input validation and sanitization
+        if (!entryId || typeof entryId !== 'string' || entryId.trim().length === 0) {
+            return res.status(400).json({ error: 'Entry ID is required and must be a non-empty string.' });
+        }
+        const sanitizedEntryId = entryId.trim();
+
+        if (!message || typeof message !== 'string' || message.trim().length === 0) {
+            return res.status(400).json({ error: 'Message is required and must be a non-empty string.' });
+        }
+        const sanitizedMessage = message.trim();
+
+        if (!Array.isArray(history)) {
+            return res.status(400).json({ error: 'History must be an array.' });
+        }
+        // Basic sanitization/validation for history elements (can be expanded)
+        const sanitizedHistory = history.map((h: any) => ({
+            role: h.role === 'user' || h.role === 'model' ? h.role : 'user', // Default to user or validate
+            parts: Array.isArray(h.parts) && h.parts.every((p: any) => typeof p.text === 'string') ? 
+                   h.parts.map((p: any) => ({ text: p.text.trim().substring(0, 1000) })) : 
+                   [{ text: '' }]
+        }));
+
+        // Transform history for Firebase AI if needed
+        // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
+        const formattedHistory = sanitizedHistory.map((h: any) => ({
+            role: h.role,
+            parts: [{ text: h.parts[0].text }]
+        }));
+
+        const responseText = await chatWithTherapist(formattedHistory, sanitizedMessage);
+        res.status(200).json({ response: responseText });
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Helper to generate cache key
+const getCacheKey = (userId: string, query: string) => `search_${userId}_${query}`;
+
+// Helper to invalidate all search caches for a user
+const invalidateUserCache = (userId: string) => {
+    // node-cache doesn't support wildcard deletion by default efficiently without keeping track of keys.
+    // For simplicity in this specific requirement, we can use cache.keys() to find relevant keys.
+    // In a production redis environment, we might use tags or sets.
+    const keys = cache.keys();
+    const userKeys = keys.filter(key => key.startsWith(`search_${userId}_`));
+    cache.del(userKeys);
 };
 
-router.post('/upload', verifyAuth, (req: any, res: any) => {
+router.post('/upload', verifyAuth, (req: any, res: any, next: any) => {
     console.log('Upload endpoint hit');
+    
+    // Invalidate cache on upload
+    if (req.user && req.user.uid) {
+        invalidateUserCache(req.user.uid);
+    }
+
     const busboy = Busboy({ headers: req.headers });
     const uploads: { [key: string]: { filepath: string, mimetype: string, filename: string } } = {};
     const fields: { [key: string]: string } = {};
@@ -52,6 +105,17 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
         console.log('Busboy finished parsing form.');
         const { title, tags } = fields;
         const userId = req.user.uid; // From auth middleware
+
+        // Input validation and sanitization
+        if (!title || typeof title !== 'string' || title.trim().length === 0) {
+            return res.status(400).json({ error: 'Title is required and must be a non-empty string.' });
+        }
+        const sanitizedTitle = title.trim().substring(0, 255); // Trim and limit length
+
+        let sanitizedTags: string[] = [];
+        if (tags && typeof tags === 'string') {
+            sanitizedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+        }
 
         for (const name in uploads) {
           const uploadData = uploads[name];
@@ -79,9 +143,9 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
             await userAudioCollection.doc(entryId).set({
               entryId,
               userId,
-              title: title || 'Untitled',
+              title: sanitizedTitle,
               audioUrl: url,
-              tags: tags ? tags.split(',') : [],
+              tags: sanitizedTags,
               transcription: 'Processing...',
               aiResponse: 'Processing...',
               createdAt: new Date(),
@@ -90,48 +154,76 @@ router.post('/upload', verifyAuth, (req: any, res: any) => {
             
             // Non-blocking background processing
             transcribeAudio(gcsUri).then(async (transcription: string) => {
-                await userAudioCollection.doc(entryId).update({ transcription });
                 const aiResponse = await getAIResponse(transcription);
-                await userAudioCollection.doc(entryId).update({ aiResponse });
+                await userAudioCollection.doc(entryId).update({ transcription, aiResponse });
             });
           }
         }
-        res.status(200).json({ message: 'Upload successful, processing audio in the background.' });
+        if (!res.headersSent) {
+            res.status(200).json({ message: 'Upload successful, processing audio in the background.' });
+        }
       } catch (error) {
-          console.error('Error during upload finish:', error);
-          res.status(500).json({ error: (error as Error).message });
+          if (!res.headersSent) {
+            next(error);
+          } else {
+            console.error('Error after response sent:', error);
+          }
       }
     });
   
     req.pipe(busboy);
   });
 
-router.get('/search', verifyAuth, async (req: any, res: any) => {
+router.get('/search', verifyAuth, async (req: any, res: any, next: any) => {
     const { q } = req.query;
     const userId = req.user.uid;
-    if (!q) {
-      return res.status(400).json({ error: 'Query parameter "q" is required.' });
+
+    // Input validation and sanitization
+    if (!q || typeof q !== 'string' || q.trim().length === 0) {
+      return res.status(400).json({ error: 'Query parameter "q" is required and must be a non-empty string.' });
     }
-  
+    const sanitizedQuery = q.trim().substring(0, 500); // Trim and limit length
+
+    const cacheKey = getCacheKey(userId, sanitizedQuery as string);
+    const cachedResults = cache.get(cacheKey);
+
+    if (cachedResults) {
+        res.setHeader('X-Cache', 'HIT');
+        return res.status(200).json(cachedResults);
+    }
+
     try {
       const snapshot = await db.collection(`users/${userId}/audioEntries`)
-        .where('transcription', '>=', q)
-        .where('transcription', '<=', q + '\uf8ff')
+        .where('transcription', '>=', sanitizedQuery)
+        .where('transcription', '<=', sanitizedQuery + '\uf8ff')
         .get();
   
       const results = snapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => doc.data());
+      
+      // Update cache
+      cache.set(cacheKey, results);
+
       res.status(200).json(results);
     } catch (error) {
-      res.status(500).json({ error: (error as Error).message });
+      next(error);
     }
   });
 
-router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
+router.delete('/:entryId', verifyAuth, async (req: any, res: any, next: any) => {
     const { entryId } = req.params;
     const userId = req.user.uid;
 
+    // Input validation
+    if (!entryId || typeof entryId !== 'string' || entryId.trim().length === 0) {
+        return res.status(400).json({ error: 'Entry ID is required and must be a non-empty string.' });
+    }
+    const sanitizedEntryId = entryId.trim();
+
+    // Invalidate cache on delete
+    invalidateUserCache(userId);
+
     try {
-        const docRef = db.doc(`users/${userId}/audioEntries/${entryId}`);
+        const docRef = db.doc(`users/${userId}/audioEntries/${sanitizedEntryId}`);
         const docSnap = await docRef.get();
 
         if (!docSnap.exists) {
@@ -160,34 +252,13 @@ router.delete('/:entryId', verifyAuth, async (req: any, res: any) => {
         await docRef.delete();
         res.status(200).json({ message: 'Audio entry deleted successfully.' });
     } catch (error) {
-        console.error('Error deleting audio entry:', error);
-        res.status(500).json({ error: (error as Error).message });
+        next(error);
     }
 });
 
-router.post('/:entryId/chat', verifyAuth, async (req: any, res: any) => {
-    const { entryId } = req.params;
-    const { message, history } = req.body;
-    const userId = req.user.uid; // Although we don't strictly need to look up the user doc here if we trust the client history, it's good practice if we wanted to log it.
-
-    if (!message) {
-        return res.status(400).json({ error: 'Message is required.' });
-    }
-
-    try {
-        // Transform history for Firebase AI if needed
-        // Expected format: { role: 'user' | 'model', parts: [{ text: string }] }[]
-        const formattedHistory = history.map((h: any) => ({
-            role: h.role,
-            parts: [{ text: h.text }]
-        }));
-
-        const responseText = await chatWithTherapist(formattedHistory, message);
-        res.status(200).json({ response: responseText });
-    } catch (error) {
-        console.error('Error in chat endpoint:', error);
-        res.status(500).json({ error: (error as Error).message });
-    }
+router.use((req, res, next) => {
+    console.log(`Audio router catch-all: ${req.method} ${req.url}`);
+    next();
 });
 
 export { router };

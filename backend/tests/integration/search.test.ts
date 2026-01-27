@@ -147,7 +147,7 @@ describe('Audio API Search Endpoint Integration', () => {
             .set('Authorization', 'Bearer mock-token');
 
         expect(res.statusCode).toEqual(400);
-        expect(res.body).toEqual({ error: 'Query parameter "q" is required.' });
+        expect(res.body).toEqual({ error: 'Query parameter "q" is required and must be a non-empty string.' });
     });
 
     it('should return 401 if no token provided', async () => {

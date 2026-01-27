@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import api from '#api/index';
-import { logger } from '#middleware/logger';
+import { errorHandler } from '#middleware/errorHandler';
 
 const app = express();
 
@@ -12,6 +12,6 @@ app.use(morgan('dev'));
 
 app.use('/api', api);
 
-app.use(logger);
+app.use(errorHandler);
 
 export default app;
